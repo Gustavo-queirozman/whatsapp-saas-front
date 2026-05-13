@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useAuthStore } from '../store/authStore'
+import { DASHBOARD_ROUTE } from '../constants/auth'
+import { getAuthenticatedRoute, useAuthStore } from '../store/authStore'
 
 type LocationState = {
   from?: {
@@ -19,7 +20,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
 
   const from =
-    (location.state as LocationState | null)?.from?.pathname ?? '/dashboard'
+    (location.state as LocationState | null)?.from?.pathname ?? DASHBOARD_ROUTE
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -27,7 +28,14 @@ export function LoginPage() {
 
     try {
       await login({ email, password })
-      navigate(from, { replace: true })
+      const destination = getAuthenticatedRoute({
+        companies: useAuthStore.getState().companies,
+        currentCompany: useAuthStore.getState().currentCompany,
+      })
+
+      navigate(destination === DASHBOARD_ROUTE ? from : destination, {
+        replace: true,
+      })
     } catch (submitError) {
       setError(
         submitError instanceof Error ? submitError.message : 'Falha ao entrar.',
@@ -77,7 +85,9 @@ export function LoginPage() {
             <p className="mt-3 text-sm leading-6 text-slate-600">
               A tela envia <span className="font-mono">POST /login</span> e,
               quando existe token, valida a sessao em{' '}
-              <span className="font-mono">GET /me</span>.
+              <span className="font-mono">GET /me</span>. Se o usuario tiver
+              mais de uma empresa, o fluxo redireciona para a selecao de
+              contexto antes de abrir o painel.
             </p>
 
             <form onSubmit={handleSubmit} className="mt-8 space-y-5">

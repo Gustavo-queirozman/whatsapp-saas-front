@@ -1,6 +1,11 @@
 const authEndpoints = [
   { method: 'POST', route: '/login', purpose: 'Autentica e retorna token.' },
   { method: 'GET', route: '/me', purpose: 'Carrega usuario autenticado.' },
+  {
+    method: 'Cliente',
+    route: '401 interceptor',
+    purpose: 'Limpa a sessao e redireciona para /login quando o token expira.',
+  },
 ]
 
 export function SettingsPage() {

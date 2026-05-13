@@ -1,3 +1,5 @@
+import { useAuthStore } from '../store/authStore'
+
 const stats = [
   { label: 'Mensagens hoje', value: '1.284', detail: '+12% vs ontem' },
   { label: 'Atendimentos ativos', value: '37', detail: '6 aguardando retorno' },
@@ -5,6 +7,8 @@ const stats = [
 ]
 
 export function DashboardPage() {
+  const currentCompany = useAuthStore((state) => state.currentCompany)
+
   return (
     <div className="space-y-6">
       <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
@@ -20,6 +24,9 @@ export function DashboardPage() {
             como volume de mensagens, status de instancias e metricas de
             atendimento.
           </p>
+          <div className="mt-6 inline-flex rounded-full border border-orange-200 bg-white px-4 py-2 text-sm font-medium text-orange-700">
+            Empresa ativa: {currentCompany?.name ?? 'Nao selecionada'}
+          </div>
         </div>
 
         <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">

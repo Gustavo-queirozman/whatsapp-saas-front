@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { AUTH_STORAGE_KEY } from '../constants/auth'
+import { AUTH_STORAGE_KEY, LOGIN_ROUTE } from '../constants/auth'
 
 type PersistedAuthState = {
   state?: {
@@ -39,3 +39,18 @@ api.interceptors.request.use((config) => {
 
   return config
 })
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem(AUTH_STORAGE_KEY)
+
+      if (window.location.pathname !== LOGIN_ROUTE) {
+        window.location.replace(LOGIN_ROUTE)
+      }
+    }
+
+    return Promise.reject(error)
+  },
+)

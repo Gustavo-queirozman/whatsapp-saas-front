@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet } from 'react-router-dom'
+import { COMPANY_SELECTION_ROUTE } from '../constants/auth'
 import { useAuthStore } from '../store/authStore'
 
 const navigation = [
@@ -17,7 +18,10 @@ const linkClassName = ({ isActive }: { isActive: boolean }) =>
 
 export function AppLayout() {
   const user = useAuthStore((state) => state.user)
+  const companies = useAuthStore((state) => state.companies)
+  const currentCompany = useAuthStore((state) => state.currentCompany)
   const logout = useAuthStore((state) => state.logout)
+  const canSwitchCompany = companies.length > 1
 
   return (
     <div className="min-h-screen p-4 md:p-6">
@@ -51,10 +55,26 @@ export function AppLayout() {
               {user?.name ?? 'Usuario autenticado'}
             </p>
             <p className="mt-1 text-sm text-slate-300">{user?.email}</p>
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-orange-200">
+                Empresa atual
+              </p>
+              <p className="mt-2 text-sm font-medium text-white">
+                {currentCompany?.name ?? 'Sem empresa selecionada'}
+              </p>
+            </div>
+            {canSwitchCompany ? (
+              <Link
+                to={COMPANY_SELECTION_ROUTE}
+                className="mt-5 block rounded-2xl border border-white/15 px-4 py-3 text-center text-sm font-medium text-white transition hover:border-orange-300 hover:text-orange-200"
+              >
+                Trocar empresa
+              </Link>
+            ) : null}
             <button
               type="button"
               onClick={logout}
-              className="mt-5 rounded-2xl border border-white/15 px-4 py-3 text-sm font-medium text-white transition hover:border-orange-300 hover:text-orange-200"
+              className="mt-3 w-full rounded-2xl border border-white/15 px-4 py-3 text-sm font-medium text-white transition hover:border-orange-300 hover:text-orange-200"
             >
               Sair
             </button>
@@ -71,15 +91,28 @@ export function AppLayout() {
                 <h2 className="mt-2 text-2xl font-semibold text-slate-900">
                   Frontend React + Laravel API
                 </h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  {currentCompany?.name ?? 'Sem empresa selecionada'}
+                </p>
               </div>
 
-              <button
-                type="button"
-                onClick={logout}
-                className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-900 hover:text-slate-950 md:hidden"
-              >
-                Sair
-              </button>
+              <div className="flex items-center gap-2">
+                {canSwitchCompany ? (
+                  <Link
+                    to={COMPANY_SELECTION_ROUTE}
+                    className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-900 hover:text-slate-950"
+                  >
+                    Trocar empresa
+                  </Link>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-900 hover:text-slate-950"
+                >
+                  Sair
+                </button>
+              </div>
             </div>
 
             <nav className="flex flex-wrap gap-2 md:hidden">

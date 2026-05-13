@@ -1,73 +1,34 @@
 import { AxiosError } from 'axios'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { AUTH_STORAGE_KEY } from '../constants/auth'
+import {
+  AUTH_STORAGE_KEY,
+  COMPANY_SELECTION_ROUTE,
+  DASHBOARD_ROUTE,
+} from '../constants/auth'
+import {
+  reconcileCurrentCompany,
+  requiresCompanySelection,
+  resolveCompanies,
+  resolveCurrentCompany,
+  resolveToken,
+  resolveUser,
+} from '../lib/auth'
 import { api } from '../lib/api'
-import type { AuthUser, LoginCredentials } from '../types/auth'
+import type { AuthCompany, AuthUser, LoginCredentials } from '../types/auth'
 
 type AuthState = {
   user: AuthUser | null
   token: string | null
+  companies: AuthCompany[]
+  currentCompany: AuthCompany | null
   isAuthenticated: boolean
   initialized: boolean
   isLoading: boolean
   login: (credentials: LoginCredentials) => Promise<void>
   logout: () => void
   initialize: () => Promise<void>
-}
-
-type LoginResponse = {
-  access_token?: string
-  token?: string
-  user?: AuthUser
-  data?: {
-    access_token?: string
-    token?: string
-    user?: AuthUser
-  }
-}
-
-type CurrentUserResponse = {
-  user?: AuthUser
-  data?: AuthUser | { user?: AuthUser }
-}
-
-const isAuthUser = (value: unknown): value is AuthUser => {
-  if (!value || typeof value !== 'object') {
-    return false
-  }
-
-  return 'email' in value && 'name' in value
-}
-
-const resolveToken = (response: LoginResponse) =>
-  response.access_token ??
-  response.token ??
-  response.data?.access_token ??
-  response.data?.token ??
-  null
-
-const resolveUser = (
-  response: LoginResponse | CurrentUserResponse,
-): AuthUser | null => {
-  if ('user' in response && isAuthUser(response.user)) {
-    return response.user
-  }
-
-  if (
-    response.data &&
-    typeof response.data === 'object' &&
-    'user' in response.data &&
-    isAuthUser(response.data.user)
-  ) {
-    return response.data.user
-  }
-
-  if (isAuthUser(response.data)) {
-    return response.data
-  }
-
-  return null
+  selectCompany: (companyId: AuthCompany['id']) => void
 }
 
 const getRequestErrorMessage = (error: unknown) => {
@@ -81,11 +42,50 @@ const getRequestErrorMessage = (error: unknown) => {
   return 'Nao foi possivel concluir a solicitacao.'
 }
 
+const createFallbackUser = ({ email }: LoginCredentials): AuthUser => ({
+  name: email.split('@')[0] || 'Usuario',
+  email,
+})
+
+const resolveSession = ({
+  payload,
+  fallbackUser,
+  persistedCurrentCompany,
+}: {
+  payload: unknown
+  fallbackUser: AuthUser | null
+  persistedCurrentCompany?: AuthCompany | null
+}) => {
+  const user = resolveUser(payload) ?? fallbackUser
+  const companies = resolveCompanies(payload)
+  const currentCompany = reconcileCurrentCompany({
+    companies,
+    currentCompany: resolveCurrentCompany(payload),
+    persistedCurrentCompany,
+  })
+
+  return {
+    user,
+    companies,
+    currentCompany,
+  }
+}
+
+export const getAuthenticatedRoute = ({
+  companies,
+  currentCompany,
+}: Pick<AuthState, 'companies' | 'currentCompany'>) =>
+  requiresCompanySelection({ companies, currentCompany })
+    ? COMPANY_SELECTION_ROUTE
+    : DASHBOARD_ROUTE
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
       token: null,
+      companies: [],
+      currentCompany: null,
       isAuthenticated: false,
       initialized: false,
       isLoading: false,
@@ -93,30 +93,43 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true })
 
         try {
-          const response = await api.post<LoginResponse>('/login', credentials)
+          const response = await api.post('/login', credentials)
           const token = resolveToken(response.data)
 
           if (!token) {
             throw new Error('A resposta da API nao retornou token.')
           }
 
-          const fallbackUser: AuthUser = {
-            name: credentials.email.split('@')[0] || 'Usuario',
-            email: credentials.email,
-          }
+          const fallbackUser = createFallbackUser(credentials)
+          const session = resolveSession({
+            payload: response.data,
+            fallbackUser,
+            persistedCurrentCompany: get().currentCompany,
+          })
 
           set({
             token,
-            user: resolveUser(response.data) ?? fallbackUser,
+            user: session.user,
+            companies: session.companies,
+            currentCompany: session.currentCompany,
             isAuthenticated: true,
             initialized: true,
             isLoading: false,
           })
 
           try {
-            const meResponse = await api.get<CurrentUserResponse>('/me')
+            const meResponse = await api.get('/me')
+            const refreshedSession = resolveSession({
+              payload: meResponse.data,
+              fallbackUser: get().user ?? fallbackUser,
+              persistedCurrentCompany: get().currentCompany,
+            })
 
-            set((state) => ({ user: resolveUser(meResponse.data) ?? state.user }))
+            set({
+              user: refreshedSession.user,
+              companies: refreshedSession.companies,
+              currentCompany: refreshedSession.currentCompany,
+            })
           } catch {
             // Mantem o fallback quando a API ainda nao expoe /me.
           }
@@ -124,6 +137,8 @@ export const useAuthStore = create<AuthState>()(
           set({
             user: null,
             token: null,
+            companies: [],
+            currentCompany: null,
             isAuthenticated: false,
             initialized: true,
             isLoading: false,
@@ -136,6 +151,8 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: null,
           token: null,
+          companies: [],
+          currentCompany: null,
           isAuthenticated: false,
           initialized: true,
           isLoading: false,
@@ -151,6 +168,8 @@ export const useAuthStore = create<AuthState>()(
         if (!token) {
           set({
             user: null,
+            companies: [],
+            currentCompany: null,
             isAuthenticated: false,
             initialized: true,
             isLoading: false,
@@ -162,10 +181,17 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true })
 
         try {
-          const response = await api.get<CurrentUserResponse>('/me')
+          const response = await api.get('/me')
+          const session = resolveSession({
+            payload: response.data,
+            fallbackUser: get().user,
+            persistedCurrentCompany: get().currentCompany,
+          })
 
           set({
-            user: resolveUser(response.data),
+            user: session.user,
+            companies: session.companies,
+            currentCompany: session.currentCompany,
             isAuthenticated: true,
             initialized: true,
             isLoading: false,
@@ -174,11 +200,24 @@ export const useAuthStore = create<AuthState>()(
           set({
             user: null,
             token: null,
+            companies: [],
+            currentCompany: null,
             isAuthenticated: false,
             initialized: true,
             isLoading: false,
           })
         }
+      },
+      selectCompany(companyId) {
+        const company = get().companies.find(
+          (item) => String(item.id) === String(companyId),
+        )
+
+        if (!company) {
+          return
+        }
+
+        set({ currentCompany: company })
       },
     }),
     {
@@ -186,6 +225,8 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.user,
         token: state.token,
+        companies: state.companies,
+        currentCompany: state.currentCompany,
         isAuthenticated: state.isAuthenticated,
       }),
     },
