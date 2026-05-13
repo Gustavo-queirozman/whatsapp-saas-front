@@ -10,6 +10,7 @@ import {
 } from './constants/auth'
 import { AppLayout } from './layouts/AppLayout'
 import { CompanySelectionPage } from './pages/CompanySelectionPage'
+import { ConversationsPage } from './pages/ConversationsPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
 import { ModulePage } from './pages/ModulePage'
@@ -36,38 +37,7 @@ export const router = createBrowserRouter([
                 children: [
                   { index: true, element: <Navigate to={DASHBOARD_ROUTE} replace /> },
                   { path: DASHBOARD_ROUTE, element: <DashboardPage /> },
-                  {
-                    path: '/atendimento',
-                    element: (
-                      <ModulePage
-                        title="Atendimento centralizado"
-                        eyebrow="Atendimento"
-                        description="Organize filas, prioridades e conversas em um espaco unico para operadores e supervisores."
-                        highlights={[
-                          'Fila priorizada por SLA e tempo de espera.',
-                          'Distribuicao rapida entre operadores e setores.',
-                          'Historico de contexto para reduzir retrabalho.',
-                        ]}
-                        stats={[
-                          {
-                            label: 'Tickets abertos',
-                            value: '42',
-                            detail: '11 com resposta pendente no momento',
-                          },
-                          {
-                            label: 'Tempo medio',
-                            value: '4m12s',
-                            detail: 'Queda de 18% no tempo de primeira resposta',
-                          },
-                          {
-                            label: 'Satisfacao',
-                            value: '94%',
-                            detail: 'Baseado nos ultimos 7 dias',
-                          },
-                        ]}
-                      />
-                    ),
-                  },
+                  { path: '/atendimento', element: <ConversationsPage /> },
                   {
                     path: '/contatos',
                     element: (
