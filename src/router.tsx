@@ -14,6 +14,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
 import { ModulePage } from './pages/ModulePage'
 import { SettingsPage } from './pages/SettingsPage'
+import { WhatsAppPage } from './pages/WhatsAppPage'
 
 export const router = createBrowserRouter([
   {
@@ -196,38 +197,7 @@ export const router = createBrowserRouter([
                     ),
                   },
                   { path: '/configuracoes', element: <SettingsPage /> },
-                  {
-                    path: '/whatsapp',
-                    element: (
-                      <ModulePage
-                        title="Saude do canal e instancias WhatsApp"
-                        eyebrow="WhatsApp"
-                        description="Acompanhe conexoes, sessoes e estabilidade do canal para reduzir interrupcoes na operacao."
-                        highlights={[
-                          'Visibilidade de QR Code, conexao e reconexao.',
-                          'Monitoramento de fila, throughput e erros.',
-                          'Base pronta para ligar webhooks e alertas.',
-                        ]}
-                        stats={[
-                          {
-                            label: 'Instancias online',
-                            value: '09',
-                            detail: '1 com alerta leve de reconexao',
-                          },
-                          {
-                            label: 'Mensagens por min',
-                            value: '284',
-                            detail: 'Pico registrado no ultimo intervalo',
-                          },
-                          {
-                            label: 'Disponibilidade',
-                            value: '99.2%',
-                            detail: 'Ultimos 30 dias de operacao',
-                          },
-                        ]}
-                      />
-                    ),
-                  },
+                  { path: '/whatsapp', element: <WhatsAppPage /> },
                   {
                     path: '/conversations',
                     element: <Navigate to="/atendimento" replace />,

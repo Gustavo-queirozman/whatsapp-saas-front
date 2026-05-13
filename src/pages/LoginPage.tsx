@@ -83,10 +83,10 @@ export function LoginPage() {
               Entrar no painel
             </h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              A tela envia <span className="font-mono">POST /login</span> e,
-              quando existe token, valida a sessao em{' '}
-              <span className="font-mono">GET /me</span>. Se o usuario tiver
-              mais de uma empresa, o fluxo redireciona para a selecao de
+              A tela envia <span className="font-mono">POST /auth/login</span>{' '}
+              e, quando existe token, valida a sessao em{' '}
+              <span className="font-mono">GET /auth/me</span>. Se o usuario
+              tiver mais de uma empresa, o fluxo redireciona para a selecao de
               contexto antes de abrir o painel.
             </p>
 

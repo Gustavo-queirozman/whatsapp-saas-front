@@ -1,6 +1,19 @@
 const authEndpoints = [
-  { method: 'POST', route: '/login', purpose: 'Autentica, cria sessao e retorna token.' },
-  { method: 'GET', route: '/me', purpose: 'Carrega usuario autenticado e empresas disponiveis.' },
+  {
+    method: 'POST',
+    route: '/auth/login',
+    purpose: 'Autentica, cria sessao e retorna token.',
+  },
+  {
+    method: 'GET',
+    route: '/auth/me',
+    purpose: 'Carrega usuario autenticado e empresas disponiveis.',
+  },
+  {
+    method: 'Header',
+    route: 'X-Company-Id',
+    purpose: 'Define a empresa atual para rotas multiempresa protegidas.',
+  },
   {
     method: 'Client',
     route: '401 interceptor',

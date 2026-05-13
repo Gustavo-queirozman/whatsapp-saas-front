@@ -93,7 +93,7 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true })
 
         try {
-          const response = await api.post('/login', credentials)
+          const response = await api.post('/auth/login', credentials)
           const token = resolveToken(response.data)
 
           if (!token) {
@@ -118,7 +118,7 @@ export const useAuthStore = create<AuthState>()(
           })
 
           try {
-            const meResponse = await api.get('/me')
+            const meResponse = await api.get('/auth/me')
             const refreshedSession = resolveSession({
               payload: meResponse.data,
               fallbackUser: get().user ?? fallbackUser,
@@ -181,7 +181,7 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true })
 
         try {
-          const response = await api.get('/me')
+          const response = await api.get('/auth/me')
           const session = resolveSession({
             payload: response.data,
             fallbackUser: get().user,
