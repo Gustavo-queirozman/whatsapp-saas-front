@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
   CampaignStatus,
+  ConversationMessage,
+  ConversationStatus,
   WorkspaceAttendant,
   WorkspaceCampaign,
   WorkspaceContact,
@@ -10,6 +12,8 @@ import type {
   WorkspaceDeal,
   WorkspacePipeline,
   WorkspacePipelineStage,
+  WorkspaceRealtimeEvent,
+  WorkspaceRealtimeState,
   WorkspaceSector,
   WorkspaceTag,
 } from '../types/workspace'
@@ -42,6 +46,110 @@ const createTimeLabel = (date = new Date()) =>
 
 const createEntryId = (prefix: string) =>
   `${prefix}-${Math.random().toString(36).slice(2, 10)}`
+
+const createRealtimeState = (): WorkspaceRealtimeState => ({
+  status: 'idle',
+  lastEventAt: null,
+  lastConnectedAt: null,
+  lastDisconnectedAt: null,
+  lastError: null,
+  retryCount: 0,
+})
+
+const mergeItemsById = <Item extends { id: string }>(current: Item[], incoming: Item[]) => {
+  const merged = new Map(current.map((item) => [item.id, item]))
+
+  for (const item of incoming) {
+    merged.set(item.id, item)
+  }
+
+  return Array.from(merged.values())
+}
+
+const moveConversationToFront = (
+  conversations: WorkspaceConversation[],
+  targetConversation: WorkspaceConversation,
+) => [
+  targetConversation,
+  ...conversations.filter((conversation) => conversation.id !== targetConversation.id),
+]
+
+const mergeConversationSnapshot = (
+  current: WorkspaceConversation | undefined,
+  incoming: WorkspaceConversation,
+) => {
+  if (!current) {
+    return incoming
+  }
+
+  return {
+    ...current,
+    ...incoming,
+    contactId: incoming.contactId || current.contactId,
+    contactName: incoming.contactName || current.contactName,
+    phone: incoming.phone || current.phone,
+    company: incoming.company || current.company,
+    sectorId: incoming.sectorId || current.sectorId,
+    tagIds: incoming.tagIds.length ? incoming.tagIds : current.tagIds,
+    summary: incoming.summary || current.summary,
+    notes: incoming.notes || current.notes,
+    channel: incoming.channel || current.channel,
+    lastMessage: incoming.lastMessage || current.lastMessage,
+    lastMessageTime: incoming.lastMessageTime || current.lastMessageTime,
+    messages: incoming.messages.length
+      ? mergeItemsById(current.messages, incoming.messages)
+      : current.messages,
+    history: incoming.history.length
+      ? mergeItemsById(current.history, incoming.history)
+      : current.history,
+  }
+}
+
+const createConversationFromRealtimeMessage = ({
+  conversationId,
+  message,
+  patch,
+}: {
+  conversationId: string
+  message: ConversationMessage
+  patch?: Partial<WorkspaceConversation>
+}): WorkspaceConversation => {
+  const now = new Date().toISOString()
+  const isIncoming = message.direction === 'incoming'
+  const resolvedStatus: ConversationStatus =
+    patch?.status ??
+    (message.direction === 'outgoing'
+      ? 'Em atendimento'
+      : isIncoming
+        ? 'Aguardando'
+        : 'Em atendimento')
+
+  return {
+    id: conversationId,
+    contactId: patch?.contactId ?? conversationId,
+    contactName: patch?.contactName ?? message.sender,
+    phone: patch?.phone ?? '',
+    company: patch?.company ?? '',
+    sectorId: patch?.sectorId ?? '',
+    status: resolvedStatus,
+    tagIds: patch?.tagIds ?? [],
+    attendant: patch?.attendant ?? null,
+    queuedAt: patch?.queuedAt ?? now,
+    lastAssignedAt:
+      patch?.lastAssignedAt ??
+      (message.direction === 'outgoing' ? now : null),
+    closedAt: patch?.closedAt ?? null,
+    lastMessage: patch?.lastMessage ?? message.content,
+    lastMessageTime: patch?.lastMessageTime ?? message.time,
+    unreadCount:
+      patch?.unreadCount ?? (message.direction === 'incoming' ? 1 : 0),
+    summary: patch?.summary ?? '',
+    notes: patch?.notes ?? '',
+    channel: patch?.channel ?? 'WhatsApp',
+    messages: [message],
+    history: [],
+  }
+}
 
 const sortCampaigns = (campaigns: WorkspaceCampaign[]) =>
   [...campaigns].sort(
@@ -725,6 +833,7 @@ type WorkspaceStore = {
   deals: WorkspaceDeal[]
   campaigns: WorkspaceCampaign[]
   conversations: WorkspaceConversation[]
+  realtime: WorkspaceRealtimeState
   createTag: (input: Pick<WorkspaceTag, 'name' | 'color' | 'description'>) => void
   updateTag: (
     tagId: string,
@@ -773,6 +882,8 @@ type WorkspaceStore = {
     conversationId: string,
     updater: (conversation: WorkspaceConversation) => WorkspaceConversation,
   ) => void
+  setRealtimeState: (patch: Partial<WorkspaceRealtimeState>) => void
+  applyRealtimeEvent: (event: WorkspaceRealtimeEvent) => void
 }
 
 export const useWorkspaceStore = create<WorkspaceStore>()(
@@ -787,6 +898,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       deals: initialDeals,
       campaigns: initialCampaigns,
       conversations: initialConversations,
+      realtime: createRealtimeState(),
       createTag(input) {
         set((state) => ({
           tags: sortTags([
@@ -1158,6 +1270,122 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           ),
         }))
       },
+      setRealtimeState(patch) {
+        set((state) => ({
+          realtime: {
+            ...state.realtime,
+            ...patch,
+          },
+        }))
+      },
+      applyRealtimeEvent(event) {
+        set((state) => {
+          const lastEventAt = new Date().toISOString()
+
+          if (event.type === 'conversation.remove') {
+            return {
+              realtime: {
+                ...state.realtime,
+                lastEventAt,
+              },
+              conversations: state.conversations.filter(
+                (conversation) => conversation.id !== event.conversationId,
+              ),
+            }
+          }
+
+          if (event.type === 'conversation.upsert') {
+            const currentConversation = state.conversations.find(
+              (conversation) => conversation.id === event.conversation.id,
+            )
+            const mergedConversation = mergeConversationSnapshot(
+              currentConversation,
+              event.conversation,
+            )
+
+            return {
+              realtime: {
+                ...state.realtime,
+                lastEventAt,
+              },
+              conversations: moveConversationToFront(
+                state.conversations,
+                mergedConversation,
+              ),
+            }
+          }
+
+          if (event.type === 'conversation.patch') {
+            return {
+              realtime: {
+                ...state.realtime,
+                lastEventAt,
+              },
+              conversations: state.conversations.map((conversation) =>
+                conversation.id === event.conversationId
+                  ? {
+                      ...conversation,
+                      ...event.patch,
+                    }
+                  : conversation,
+              ),
+            }
+          }
+
+          const currentConversation = state.conversations.find(
+            (conversation) => conversation.id === event.conversationId,
+          )
+
+          const isIncoming = event.message.direction === 'incoming'
+          const patchedStatus =
+            event.patch?.status ??
+            (isIncoming
+              ? currentConversation?.attendant
+                ? 'Em atendimento'
+                : 'Aguardando'
+              : currentConversation?.status ?? 'Em atendimento')
+          const patchedUnreadCount =
+            event.patch?.unreadCount ??
+            (isIncoming
+              ? (currentConversation?.unreadCount ?? 0) + 1
+              : 0)
+
+          const nextConversation = currentConversation
+            ? {
+                ...currentConversation,
+                ...event.patch,
+                status: patchedStatus,
+                unreadCount: patchedUnreadCount,
+                closedAt:
+                  event.patch?.closedAt ??
+                  (event.message.direction === 'system'
+                    ? currentConversation.closedAt
+                    : null),
+                lastMessage: event.patch?.lastMessage ?? event.message.content,
+                lastMessageTime:
+                  event.patch?.lastMessageTime ?? event.message.time,
+                messages: mergeItemsById(currentConversation.messages, [
+                  event.message,
+                ]),
+              }
+            : createConversationFromRealtimeMessage({
+                conversationId: event.conversationId,
+                message: event.message,
+                patch: event.patch,
+              })
+
+          return {
+            realtime: {
+              ...state.realtime,
+              lastEventAt,
+            },
+            conversations: moveConversationToFront(
+              state.conversations,
+              nextConversation,
+            ),
+          }
+        })
+      },
     }),
     {
       name: WORKSPACE_STORAGE_KEY,
@@ -1171,6 +1399,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         deals: state.deals,
         campaigns: state.campaigns,
         conversations: state.conversations,
+        realtime: state.realtime,
       }),
     },
   ),

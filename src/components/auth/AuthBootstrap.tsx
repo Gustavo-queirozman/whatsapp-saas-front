@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
+import { RealtimeBootstrap } from './RealtimeBootstrap'
 import { FullscreenLoader } from '../ui/FullscreenLoader'
 
 export function AuthBootstrap() {
@@ -15,5 +16,10 @@ export function AuthBootstrap() {
     return <FullscreenLoader />
   }
 
-  return <Outlet />
+  return (
+    <>
+      <RealtimeBootstrap />
+      <Outlet />
+    </>
+  )
 }

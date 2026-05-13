@@ -116,6 +116,13 @@ export type ConversationHistoryItem = {
   time: string
 }
 
+export type RealtimeConnectionStatus =
+  | 'idle'
+  | 'connecting'
+  | 'connected'
+  | 'disconnected'
+  | 'error'
+
 export type WorkspaceConversation = {
   id: string
   contactId: string
@@ -138,3 +145,33 @@ export type WorkspaceConversation = {
   messages: ConversationMessage[]
   history: ConversationHistoryItem[]
 }
+
+export type WorkspaceRealtimeState = {
+  status: RealtimeConnectionStatus
+  lastEventAt: string | null
+  lastConnectedAt: string | null
+  lastDisconnectedAt: string | null
+  lastError: string | null
+  retryCount: number
+}
+
+export type WorkspaceRealtimeEvent =
+  | {
+      type: 'conversation.upsert'
+      conversation: WorkspaceConversation
+    }
+  | {
+      type: 'conversation.patch'
+      conversationId: string
+      patch: Partial<WorkspaceConversation>
+    }
+  | {
+      type: 'conversation.message'
+      conversationId: string
+      message: ConversationMessage
+      patch?: Partial<WorkspaceConversation>
+    }
+  | {
+      type: 'conversation.remove'
+      conversationId: string
+    }

@@ -15,6 +15,7 @@ import { useWorkspaceStore } from '../store/workspaceStore'
 import type {
   ConversationStatus,
   MessageDirection,
+  RealtimeConnectionStatus,
   WorkspaceConversation,
 } from '../types/workspace'
 
@@ -51,6 +52,59 @@ const createTimeLabel = () =>
 const createEntryId = (prefix: string) =>
   `${prefix}-${Math.random().toString(36).slice(2, 10)}`
 
+const getRealtimeStatusClasses = (status: RealtimeConnectionStatus) => {
+  if (status === 'connected') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  }
+
+  if (status === 'connecting') {
+    return 'border-sky-200 bg-sky-50 text-sky-700'
+  }
+
+  if (status === 'error') {
+    return 'border-rose-200 bg-rose-50 text-rose-700'
+  }
+
+  if (status === 'disconnected') {
+    return 'border-amber-200 bg-amber-50 text-amber-700'
+  }
+
+  return 'border-slate-200 bg-slate-100 text-slate-600'
+}
+
+const getRealtimeStatusLabel = (status: RealtimeConnectionStatus) => {
+  if (status === 'connected') {
+    return 'Socket conectado'
+  }
+
+  if (status === 'connecting') {
+    return 'Conectando websocket'
+  }
+
+  if (status === 'error') {
+    return 'Falha no websocket'
+  }
+
+  if (status === 'disconnected') {
+    return 'Reconectando canal'
+  }
+
+  return 'Canal inativo'
+}
+
+const formatRealtimeTimestamp = (value: string | null) => {
+  if (!value) {
+    return null
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value))
+}
+
 type AiActionKey = 'summary' | 'suggestion' | 'intent'
 
 type ConversationAiState = {
@@ -64,6 +118,7 @@ export function ConversationsPage() {
   const conversations = useWorkspaceStore((state) => state.conversations)
   const sectors = useWorkspaceStore((state) => state.sectors)
   const tags = useWorkspaceStore((state) => state.tags)
+  const realtime = useWorkspaceStore((state) => state.realtime)
   const assignConversation = useWorkspaceStore((state) => state.assignConversation)
   const updateConversation = useWorkspaceStore((state) => state.updateConversation)
   const [nowTick, setNowTick] = useState(() => Date.now())
@@ -93,6 +148,10 @@ export function ConversationsPage() {
 
   const currentAgentName = user?.name?.trim() || 'Marina Lopes'
   const currentAgentRole = user?.email ? 'Agente autenticado' : 'Supervisora online'
+  const realtimeStatusDetail =
+    formatRealtimeTimestamp(realtime.lastEventAt) ??
+    formatRealtimeTimestamp(realtime.lastConnectedAt) ??
+    formatRealtimeTimestamp(realtime.lastDisconnectedAt)
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNowTick(Date.now()), 60_000)
@@ -420,6 +479,26 @@ export function ConversationsPage() {
               assuma o atendimento, transfira o setor, finalize ou responda sem sair
               da mesma tela.
             </p>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${getRealtimeStatusClasses(realtime.status)}`}
+              >
+                {getRealtimeStatusLabel(realtime.status)}
+              </span>
+              {realtimeStatusDetail ? (
+                <span className="text-xs text-slate-500">
+                  Ultimo evento em {realtimeStatusDetail}
+                </span>
+              ) : null}
+              {realtime.retryCount ? (
+                <span className="text-xs text-slate-500">
+                  Tentativa {realtime.retryCount}
+                </span>
+              ) : null}
+            </div>
+            {realtime.lastError ? (
+              <p className="mt-3 text-sm text-rose-600">{realtime.lastError}</p>
+            ) : null}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
@@ -544,8 +623,15 @@ export function ConversationsPage() {
                   {filteredConversations.length} resultados no filtro atual
                 </p>
               </div>
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[linear-gradient(135deg,#25d366,#0f766e)] text-sm font-semibold text-slate-950">
-                WA
+              <div className="flex flex-col items-end gap-2">
+                <span
+                  className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${getRealtimeStatusClasses(realtime.status)}`}
+                >
+                  {realtime.status === 'connected' ? 'Live' : 'Sync'}
+                </span>
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[linear-gradient(135deg,#25d366,#0f766e)] text-sm font-semibold text-slate-950">
+                  WA
+                </div>
               </div>
             </div>
           </div>
