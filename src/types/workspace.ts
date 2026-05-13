@@ -41,6 +41,33 @@ export type WorkspaceContact = {
   tagIds: string[]
 }
 
+export type CampaignStatus = 'Agendada' | 'Em andamento' | 'Pausada' | 'Concluida'
+
+export type CampaignRecipientStatus =
+  | 'Agendado'
+  | 'Enviado'
+  | 'Entregue'
+  | 'Falhou'
+
+export type WorkspaceCampaignRecipient = {
+  contactId: string
+  status: CampaignRecipientStatus
+  lastUpdatedAt: string
+}
+
+export type WorkspaceCampaign = {
+  id: string
+  name: string
+  whatsappInstanceId: number
+  whatsappInstanceName: string
+  message: string
+  scheduledAt: string
+  status: CampaignStatus
+  recipients: WorkspaceCampaignRecipient[]
+  createdAt: string
+  updatedAt: string
+}
+
 export type ConversationStatus = 'Aguardando' | 'Em atendimento' | 'Finalizada'
 
 export type MessageDirection = 'incoming' | 'outgoing' | 'system'

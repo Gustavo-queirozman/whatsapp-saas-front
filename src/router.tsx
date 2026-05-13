@@ -10,6 +10,7 @@ import {
 } from './constants/auth'
 import { AppLayout } from './layouts/AppLayout'
 import { CompanySelectionPage } from './pages/CompanySelectionPage'
+import { CampaignsPage } from './pages/CampaignsPage'
 import { ChatbotPage } from './pages/ChatbotPage'
 import { ConversationsPage } from './pages/ConversationsPage'
 import { ContactsPage } from './pages/ContactsPage'
@@ -45,38 +46,7 @@ export const router = createBrowserRouter([
                   { path: '/contatos', element: <ContactsPage /> },
                   { path: '/filas', element: <QueuesPage /> },
                   { path: '/setores', element: <SectorsPage /> },
-                  {
-                    path: '/campanhas',
-                    element: (
-                      <ModulePage
-                        title="Campanhas com monitoramento"
-                        eyebrow="Campanhas"
-                        description="Planeje disparos, acompanhe entrega e ajuste segmentacoes sem sair do shell principal."
-                        highlights={[
-                          'Calendario de disparos por publico e janela.',
-                          'Monitoramento de entrega e resposta em tempo real.',
-                          'Comparativo de performance entre campanhas.',
-                        ]}
-                        stats={[
-                          {
-                            label: 'Campanhas ativas',
-                            value: '05',
-                            detail: '2 agendadas para hoje a tarde',
-                          },
-                          {
-                            label: 'Taxa de entrega',
-                            value: '98.6%',
-                            detail: 'Media consolidada dos ultimos envios',
-                          },
-                          {
-                            label: 'Cliques',
-                            value: '13.4%',
-                            detail: 'Melhor indice do ultimo trimestre',
-                          },
-                        ]}
-                      />
-                    ),
-                  },
+                  { path: '/campanhas', element: <CampaignsPage /> },
                   {
                     path: '/crm',
                     element: (

@@ -1,9 +1,12 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
+  CampaignStatus,
   WorkspaceAttendant,
+  WorkspaceCampaign,
   WorkspaceContact,
   WorkspaceConversation,
+  WorkspaceCampaignRecipient,
   WorkspaceSector,
   WorkspaceTag,
 } from '../types/workspace'
@@ -24,6 +27,12 @@ const createTimeLabel = (date = new Date()) =>
 
 const createEntryId = (prefix: string) =>
   `${prefix}-${Math.random().toString(36).slice(2, 10)}`
+
+const sortCampaigns = (campaigns: WorkspaceCampaign[]) =>
+  [...campaigns].sort(
+    (first, second) =>
+      new Date(second.scheduledAt).getTime() - new Date(first.scheduledAt).getTime(),
+  )
 
 const isDefinedAttendant = (
   attendant: WorkspaceAttendant | undefined,
@@ -473,6 +482,68 @@ const initialConversations: WorkspaceConversation[] = [
   },
 ]
 
+const createCampaignRecipient = (
+  contactId: string,
+  status: WorkspaceCampaignRecipient['status'],
+  lastUpdatedAt: string,
+): WorkspaceCampaignRecipient => ({
+  contactId,
+  status,
+  lastUpdatedAt,
+})
+
+const initialCampaigns: WorkspaceCampaign[] = sortCampaigns([
+  {
+    id: 'campaign-renovacao-vip',
+    name: 'Renovacao VIP Maio',
+    whatsappInstanceId: 101,
+    whatsappInstanceName: 'financeiro_principal',
+    message:
+      'Oi! Passando para confirmar a renovacao do plano e te enviar o link prioritario de pagamento. Se preferir, responda esta mensagem e seguimos por aqui.',
+    scheduledAt: '2026-05-13T18:30:00.000Z',
+    status: 'Em andamento',
+    recipients: [
+      createCampaignRecipient('contact-ana', 'Entregue', '2026-05-13T18:33:00.000Z'),
+      createCampaignRecipient('contact-thiago', 'Enviado', '2026-05-13T18:35:00.000Z'),
+      createCampaignRecipient('contact-camila', 'Agendado', '2026-05-13T18:30:00.000Z'),
+    ],
+    createdAt: '2026-05-13T17:45:00.000Z',
+    updatedAt: '2026-05-13T18:35:00.000Z',
+  },
+  {
+    id: 'campaign-leads-enterprise',
+    name: 'Follow-up Leads Enterprise',
+    whatsappInstanceId: 102,
+    whatsappInstanceName: 'comercial_brasil',
+    message:
+      'Olá! Separei uma condicao comercial valida ate o fim do dia para retomarmos a proposta enterprise. Posso te enviar os detalhes agora?',
+    scheduledAt: '2026-05-13T20:00:00.000Z',
+    status: 'Pausada',
+    recipients: [
+      createCampaignRecipient('contact-lucas', 'Agendado', '2026-05-13T17:58:00.000Z'),
+      createCampaignRecipient('contact-thiago', 'Agendado', '2026-05-13T17:58:00.000Z'),
+    ],
+    createdAt: '2026-05-13T16:10:00.000Z',
+    updatedAt: '2026-05-13T17:58:00.000Z',
+  },
+  {
+    id: 'campaign-onboarding-sexta',
+    name: 'Lembrete de treinamento',
+    whatsappInstanceId: 103,
+    whatsappInstanceName: 'onboarding_time',
+    message:
+      'Lembrete rapido: seu treinamento operacional esta confirmado para sexta-feira as 10h. Se quiser antecipar duvidas, responda esta mensagem.',
+    scheduledAt: '2026-05-12T19:00:00.000Z',
+    status: 'Concluida',
+    recipients: [
+      createCampaignRecipient('contact-vitta', 'Entregue', '2026-05-12T19:02:00.000Z'),
+      createCampaignRecipient('contact-camila', 'Falhou', '2026-05-12T19:04:00.000Z'),
+    ],
+    createdAt: '2026-05-12T17:20:00.000Z',
+    updatedAt: '2026-05-12T19:04:00.000Z',
+  },
+])
+
 const assignConversationInternal = ({
   conversation,
   attendantName,
@@ -507,6 +578,7 @@ type WorkspaceStore = {
   attendants: WorkspaceAttendant[]
   sectors: WorkspaceSector[]
   contacts: WorkspaceContact[]
+  campaigns: WorkspaceCampaign[]
   conversations: WorkspaceConversation[]
   createTag: (input: Pick<WorkspaceTag, 'name' | 'color' | 'description'>) => void
   updateTag: (
@@ -529,6 +601,15 @@ type WorkspaceStore = {
     contactId: string,
     updater: (contact: WorkspaceContact) => WorkspaceContact,
   ) => void
+  createCampaign: (input: {
+    name: string
+    whatsappInstanceId: number
+    whatsappInstanceName: string
+    message: string
+    contactIds: string[]
+    scheduledAt: string
+  }) => string
+  toggleCampaignStatus: (campaignId: string) => void
   updateConversation: (
     conversationId: string,
     updater: (conversation: WorkspaceConversation) => WorkspaceConversation,
@@ -542,6 +623,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       attendants: initialAttendants,
       sectors: initialSectors,
       contacts: initialContacts,
+      campaigns: initialCampaigns,
       conversations: initialConversations,
       createTag(input) {
         set((state) => ({
@@ -781,6 +863,56 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           ),
         }))
       },
+      createCampaign(input) {
+        const campaignId = crypto.randomUUID()
+        const timestamp = new Date().toISOString()
+
+        set((state) => ({
+          campaigns: sortCampaigns([
+            {
+              id: campaignId,
+              name: input.name.trim(),
+              whatsappInstanceId: input.whatsappInstanceId,
+              whatsappInstanceName: input.whatsappInstanceName,
+              message: input.message.trim(),
+              scheduledAt: input.scheduledAt,
+              status: 'Agendada',
+              recipients: input.contactIds.map((contactId) =>
+                createCampaignRecipient(contactId, 'Agendado', input.scheduledAt),
+              ),
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            },
+            ...state.campaigns,
+          ]),
+        }))
+
+        return campaignId
+      },
+      toggleCampaignStatus(campaignId) {
+        set((state) => ({
+          campaigns: sortCampaigns(
+            state.campaigns.map((campaign) => {
+              if (campaign.id !== campaignId || campaign.status === 'Concluida') {
+                return campaign
+              }
+
+              const nextStatus: CampaignStatus =
+                campaign.status === 'Pausada'
+                  ? new Date(campaign.scheduledAt).getTime() > Date.now()
+                    ? 'Agendada'
+                    : 'Em andamento'
+                  : 'Pausada'
+
+              return {
+                ...campaign,
+                status: nextStatus,
+                updatedAt: new Date().toISOString(),
+              }
+            }),
+          ),
+        }))
+      },
       updateConversation(conversationId, updater) {
         set((state) => ({
           conversations: state.conversations.map((conversation) =>
@@ -798,6 +930,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         attendants: state.attendants,
         sectors: state.sectors,
         contacts: state.contacts,
+        campaigns: state.campaigns,
         conversations: state.conversations,
       }),
     },
