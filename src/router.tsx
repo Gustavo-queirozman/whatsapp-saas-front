@@ -11,6 +11,7 @@ import {
 import { AppLayout } from './layouts/AppLayout'
 import { CompanySelectionPage } from './pages/CompanySelectionPage'
 import { ConversationsPage } from './pages/ConversationsPage'
+import { ContactsPage } from './pages/ContactsPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
 import { ModulePage } from './pages/ModulePage'
@@ -38,38 +39,7 @@ export const router = createBrowserRouter([
                   { index: true, element: <Navigate to={DASHBOARD_ROUTE} replace /> },
                   { path: DASHBOARD_ROUTE, element: <DashboardPage /> },
                   { path: '/atendimento', element: <ConversationsPage /> },
-                  {
-                    path: '/contatos',
-                    element: (
-                      <ModulePage
-                        title="Base de contatos e segmentos"
-                        eyebrow="Contatos"
-                        description="Centralize clientes, leads e listas inteligentes para alimentar atendimento, campanhas e CRM."
-                        highlights={[
-                          'Etiquetas por origem, etapa e potencial de compra.',
-                          'Importacao e higienizacao da base comercial.',
-                          'Segmentos reaproveitaveis para campanhas futuras.',
-                        ]}
-                        stats={[
-                          {
-                            label: 'Contatos ativos',
-                            value: '12.8k',
-                            detail: '3 listas prontas para nova campanha',
-                          },
-                          {
-                            label: 'Novos leads',
-                            value: '286',
-                            detail: 'Captados nas ultimas 24 horas',
-                          },
-                          {
-                            label: 'Perfis completos',
-                            value: '81%',
-                            detail: 'Com nome, telefone e origem preenchidos',
-                          },
-                        ]}
-                      />
-                    ),
-                  },
+                  { path: '/contatos', element: <ContactsPage /> },
                   {
                     path: '/campanhas',
                     element: (

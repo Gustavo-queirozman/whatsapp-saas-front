@@ -1,43 +1,13 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-
-type ConversationStatus = 'Aguardando' | 'Em atendimento' | 'Finalizada'
-type MessageDirection = 'incoming' | 'outgoing' | 'system'
-
-type Message = {
-  id: string
-  direction: MessageDirection
-  content: string
-  sender: string
-  time: string
-}
-
-type HistoryItem = {
-  id: string
-  title: string
-  description: string
-  time: string
-}
-
-type Conversation = {
-  id: string
-  contactName: string
-  phone: string
-  company: string
-  sector: string
-  status: ConversationStatus
-  tags: string[]
-  attendant: string | null
-  waitingSince: string
-  lastMessage: string
-  lastMessageTime: string
-  unreadCount: number
-  summary: string
-  notes: string
-  channel: string
-  messages: Message[]
-  history: HistoryItem[]
-}
+import { TagBadge } from '../components/tags/TagBadge'
+import { TagPicker } from '../components/tags/TagPicker'
+import { useWorkspaceStore } from '../store/workspaceStore'
+import type {
+  ConversationStatus,
+  MessageDirection,
+  WorkspaceConversation,
+} from '../types/workspace'
 
 const currentAgent = {
   name: 'Marina Lopes',
@@ -45,239 +15,6 @@ const currentAgent = {
 }
 
 const sectorOptions = ['Comercial', 'Suporte', 'Financeiro', 'Onboarding']
-
-const initialConversations: Conversation[] = [
-  {
-    id: 'conv-1',
-    contactName: 'Ana Costa',
-    phone: '+55 11 99871-2304',
-    company: 'Studio Avela',
-    sector: 'Financeiro',
-    status: 'Aguardando',
-    tags: ['VIP', 'Boleto'],
-    attendant: null,
-    waitingSince: '12 min',
-    lastMessage: 'Pode confirmar se o boleto compensa hoje?',
-    lastMessageTime: '09:14',
-    unreadCount: 3,
-    summary: 'Cliente aguardando confirmacao de pagamento da renovacao anual.',
-    notes: 'Renovacao vence amanha. Priorizar retorno ainda nesta janela.',
-    channel: 'WhatsApp Business',
-    messages: [
-      {
-        id: 'msg-1',
-        direction: 'incoming',
-        content: 'Bom dia, preciso confirmar o pagamento da assinatura.',
-        sender: 'Ana Costa',
-        time: '08:57',
-      },
-      {
-        id: 'msg-2',
-        direction: 'incoming',
-        content: 'O boleto que recebi vence hoje e queria saber se a ativacao segue normal.',
-        sender: 'Ana Costa',
-        time: '09:02',
-      },
-      {
-        id: 'msg-3',
-        direction: 'system',
-        content: 'Chat roteado automaticamente para o setor Financeiro.',
-        sender: 'Sistema',
-        time: '09:03',
-      },
-      {
-        id: 'msg-4',
-        direction: 'incoming',
-        content: 'Pode confirmar se o boleto compensa hoje?',
-        sender: 'Ana Costa',
-        time: '09:14',
-      },
-    ],
-    history: [
-      {
-        id: 'hist-1',
-        title: 'Entrada no atendimento',
-        description: 'Conversa iniciada pelo canal principal do WhatsApp.',
-        time: '08:57',
-      },
-      {
-        id: 'hist-2',
-        title: 'Triagem automatica',
-        description: 'Tag Boleto aplicada e encaminhamento ao Financeiro.',
-        time: '09:03',
-      },
-    ],
-  },
-  {
-    id: 'conv-2',
-    contactName: 'Lucas Martins',
-    phone: '+55 21 99751-1032',
-    company: 'Orbita Imoveis',
-    sector: 'Comercial',
-    status: 'Em atendimento',
-    tags: ['Lead quente', 'Proposta'],
-    attendant: 'Joao Pedro',
-    waitingSince: '3 min',
-    lastMessage: 'Fechado. Pode mandar o contrato ainda hoje.',
-    lastMessageTime: '09:09',
-    unreadCount: 0,
-    summary: 'Negociacao em fechamento com interesse no plano Enterprise.',
-    notes: 'Cliente pediu contrato com clausula de onboarding estendido.',
-    channel: 'WhatsApp Business',
-    messages: [
-      {
-        id: 'msg-5',
-        direction: 'outgoing',
-        content: 'Consegui aprovar a proposta com onboarding incluido sem custo adicional.',
-        sender: 'Joao Pedro',
-        time: '08:48',
-      },
-      {
-        id: 'msg-6',
-        direction: 'incoming',
-        content: 'Perfeito. Se mandar o contrato hoje, eu consigo assinar.',
-        sender: 'Lucas Martins',
-        time: '08:52',
-      },
-      {
-        id: 'msg-7',
-        direction: 'outgoing',
-        content: 'Vou preparar agora. Posso seguir com o CNPJ da Orbita?',
-        sender: 'Joao Pedro',
-        time: '09:01',
-      },
-      {
-        id: 'msg-8',
-        direction: 'incoming',
-        content: 'Fechado. Pode mandar o contrato ainda hoje.',
-        sender: 'Lucas Martins',
-        time: '09:09',
-      },
-    ],
-    history: [
-      {
-        id: 'hist-3',
-        title: 'Atendimento assumido',
-        description: 'Joao Pedro assumiu a conversa apos a qualificacao inicial.',
-        time: '08:31',
-      },
-      {
-        id: 'hist-4',
-        title: 'Etiqueta Proposta aplicada',
-        description: 'Conversa movida para monitoramento comercial.',
-        time: '08:44',
-      },
-    ],
-  },
-  {
-    id: 'conv-3',
-    contactName: 'Camila Nunes',
-    phone: '+55 31 98810-4457',
-    company: 'Clinica Revita',
-    sector: 'Suporte',
-    status: 'Em atendimento',
-    tags: ['Prioridade alta', 'Integracao'],
-    attendant: 'Marina Lopes',
-    waitingSince: 'Agora',
-    lastMessage: 'Pode seguir. Estou acompanhando por aqui.',
-    lastMessageTime: '09:18',
-    unreadCount: 0,
-    summary: 'Falha de integracao no envio de lembretes para pacientes.',
-    notes: 'Ambiente ja validado. Cliente precisa de retorno em menos de 20 min.',
-    channel: 'WhatsApp Business',
-    messages: [
-      {
-        id: 'msg-9',
-        direction: 'incoming',
-        content: 'Os lembretes nao estao saindo desde cedo. Alguma instabilidade?',
-        sender: 'Camila Nunes',
-        time: '08:58',
-      },
-      {
-        id: 'msg-10',
-        direction: 'outgoing',
-        content: 'Estou verificando a fila de integracao e ja volto com a causa.',
-        sender: 'Marina Lopes',
-        time: '09:04',
-      },
-      {
-        id: 'msg-11',
-        direction: 'system',
-        content: 'Historico tecnico anexado ao ticket pela operacao.',
-        sender: 'Sistema',
-        time: '09:11',
-      },
-      {
-        id: 'msg-12',
-        direction: 'outgoing',
-        content: 'Pode seguir. Estou acompanhando por aqui.',
-        sender: 'Marina Lopes',
-        time: '09:18',
-      },
-    ],
-    history: [
-      {
-        id: 'hist-5',
-        title: 'Atendimento assumido',
-        description: 'Marina Lopes assumiu a conversa para resposta prioritaria.',
-        time: '09:01',
-      },
-      {
-        id: 'hist-6',
-        title: 'Historico sincronizado',
-        description: 'Eventos da integracao enviados para o contexto do agente.',
-        time: '09:11',
-      },
-    ],
-  },
-  {
-    id: 'conv-4',
-    contactName: 'Equipe Vitta',
-    phone: '+55 71 98761-2210',
-    company: 'Vitta Educacao',
-    sector: 'Onboarding',
-    status: 'Finalizada',
-    tags: ['Implantacao', 'Treinamento'],
-    attendant: 'Sofia Mendes',
-    waitingSince: 'Encerrada',
-    lastMessage: 'Treinamento confirmado para sexta, obrigado.',
-    lastMessageTime: 'Ontem',
-    unreadCount: 0,
-    summary: 'Treinamento da equipe confirmado e agenda compartilhada.',
-    notes: 'Cliente pediu gravacao da sessao para repasse interno.',
-    channel: 'WhatsApp Business',
-    messages: [
-      {
-        id: 'msg-13',
-        direction: 'outgoing',
-        content: 'Fechei a agenda com o time de implantacao para sexta as 10h.',
-        sender: 'Sofia Mendes',
-        time: '17:02',
-      },
-      {
-        id: 'msg-14',
-        direction: 'incoming',
-        content: 'Treinamento confirmado para sexta, obrigado.',
-        sender: 'Equipe Vitta',
-        time: '17:05',
-      },
-    ],
-    history: [
-      {
-        id: 'hist-7',
-        title: 'Transferencia concluida',
-        description: 'Atendimento transferido do Comercial para Onboarding.',
-        time: '16:11',
-      },
-      {
-        id: 'hist-8',
-        title: 'Conversa finalizada',
-        description: 'Encerramento realizado apos confirmacao da agenda.',
-        time: '17:06',
-      },
-    ],
-  },
-]
 
 const getStatusClasses = (status: ConversationStatus) => {
   if (status === 'Aguardando') {
@@ -313,18 +50,16 @@ const createEntryId = (prefix: string) =>
   `${prefix}-${Math.random().toString(36).slice(2, 10)}`
 
 export function ConversationsPage() {
-  const [conversations, setConversations] =
-    useState<Conversation[]>(initialConversations)
+  const conversations = useWorkspaceStore((state) => state.conversations)
+  const tags = useWorkspaceStore((state) => state.tags)
+  const updateConversation = useWorkspaceStore((state) => state.updateConversation)
   const [activeConversationId, setActiveConversationId] = useState(
-    initialConversations[0]?.id ?? '',
+    conversations[0]?.id ?? '',
   )
   const [transferTargets, setTransferTargets] = useState<Record<string, string>>(
     () =>
       Object.fromEntries(
-        initialConversations.map((conversation) => [
-          conversation.id,
-          conversation.sector,
-        ]),
+        conversations.map((conversation) => [conversation.id, conversation.sector]),
       ),
   )
   const [showHistory, setShowHistory] = useState(true)
@@ -332,24 +67,29 @@ export function ConversationsPage() {
   const [filters, setFilters] = useState({
     sector: 'Todos',
     status: 'Todos',
-    tag: 'Todas',
+    tagId: 'all',
     attendant: 'Todos',
   })
+
+  const tagMap = useMemo(() => new Map(tags.map((tag) => [tag.id, tag])), [tags])
+
+  const activeTagFilter =
+    filters.tagId === 'all' || tags.some((tag) => tag.id === filters.tagId)
+      ? filters.tagId
+      : 'all'
 
   const sectorFilterOptions = [
     'Todos',
     ...Array.from(new Set(conversations.map((item) => item.sector))),
   ]
+
   const statusFilterOptions: Array<ConversationStatus | 'Todos'> = [
     'Todos',
     'Aguardando',
     'Em atendimento',
     'Finalizada',
   ]
-  const tagFilterOptions = [
-    'Todas',
-    ...Array.from(new Set(conversations.flatMap((item) => item.tags))),
-  ]
+
   const attendantFilterOptions = [
     'Todos',
     'Nao atribuido',
@@ -368,7 +108,7 @@ export function ConversationsPage() {
     const matchesStatus =
       filters.status === 'Todos' || conversation.status === filters.status
     const matchesTag =
-      filters.tag === 'Todas' || conversation.tags.includes(filters.tag)
+      activeTagFilter === 'all' || conversation.tagIds.includes(activeTagFilter)
     const matchesAttendant =
       filters.attendant === 'Todos' ||
       (filters.attendant === 'Nao atribuido'
@@ -388,21 +128,11 @@ export function ConversationsPage() {
     conversations.find((item) => item.id === resolvedConversationId) ??
     filteredConversations[0] ??
     null
+
   const selectedSector =
     (activeConversation ? transferTargets[activeConversation.id] : null) ??
     activeConversation?.sector ??
     sectorOptions[0]
-
-  const updateConversation = (
-    conversationId: string,
-    updater: (conversation: Conversation) => Conversation,
-  ) => {
-    setConversations((current) =>
-      current.map((conversation) =>
-        conversation.id === conversationId ? updater(conversation) : conversation,
-      ),
-    )
-  }
 
   const handleAssumeConversation = () => {
     if (!activeConversation || activeConversation.status === 'Finalizada') {
@@ -517,6 +247,37 @@ export function ConversationsPage() {
     setDraftMessage('')
   }
 
+  const handleToggleConversationTag = (tagId: string) => {
+    if (!activeConversation) {
+      return
+    }
+
+    const tag = tagMap.get(tagId)
+
+    if (!tag) {
+      return
+    }
+
+    const now = createTimeLabel()
+    const wasApplied = activeConversation.tagIds.includes(tagId)
+
+    updateConversation(activeConversation.id, (conversation: WorkspaceConversation) => ({
+      ...conversation,
+      tagIds: wasApplied
+        ? conversation.tagIds.filter((currentTagId) => currentTagId !== tagId)
+        : [...conversation.tagIds, tagId],
+      history: [
+        {
+          id: createEntryId('hist'),
+          title: wasApplied ? 'Tag removida' : 'Tag aplicada',
+          description: `${currentAgent.name} ${wasApplied ? 'removeu' : 'aplicou'} a tag ${tag.name}.`,
+          time: now,
+        },
+        ...conversation.history,
+      ],
+    }))
+  }
+
   return (
     <div className="space-y-4">
       <section className="rounded-[1.8rem] border border-white/80 bg-[linear-gradient(135deg,#f6fff8,#ffffff_48%,#eefaf3)] p-4 shadow-[0_20px_60px_rgba(15,23,42,0.08)] md:p-5">
@@ -605,15 +366,16 @@ export function ConversationsPage() {
               Tag
             </span>
             <select
-              value={filters.tag}
+              value={activeTagFilter}
               onChange={(event) =>
-                setFilters((current) => ({ ...current, tag: event.target.value }))
+                setFilters((current) => ({ ...current, tagId: event.target.value }))
               }
               className="mt-2 w-full bg-transparent text-sm font-medium text-slate-950 outline-none"
             >
-              {tagFilterOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
+              <option value="all">Todas</option>
+              {tags.map((tag) => (
+                <option key={tag.id} value={tag.id}>
+                  {tag.name}
                 </option>
               ))}
             </select>
@@ -626,7 +388,10 @@ export function ConversationsPage() {
             <select
               value={filters.attendant}
               onChange={(event) =>
-                setFilters((current) => ({ ...current, attendant: event.target.value }))
+                setFilters((current) => ({
+                  ...current,
+                  attendant: event.target.value,
+                }))
               }
               className="mt-2 w-full bg-transparent text-sm font-medium text-slate-950 outline-none"
             >
@@ -712,6 +477,10 @@ export function ConversationsPage() {
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                         {conversation.attendant ?? 'Sem responsavel'}
                       </span>
+                      {conversation.tagIds.slice(0, 2).map((tagId) => {
+                        const tag = tagMap.get(tagId)
+                        return tag ? <TagBadge key={tag.id} tag={tag} /> : null
+                      })}
                     </div>
                   </button>
                 )
@@ -748,18 +517,14 @@ export function ConversationsPage() {
                       </span>
                     </div>
                     <p className="mt-2 text-sm text-slate-500">
-                      {activeConversation.phone} · {activeConversation.company} ·{' '}
+                      {activeConversation.phone} | {activeConversation.company} |{' '}
                       {activeConversation.channel}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {activeConversation.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700"
-                        >
-                          {tag}
-                        </span>
-                      ))}
+                      {activeConversation.tagIds.map((tagId) => {
+                        const tag = tagMap.get(tagId)
+                        return tag ? <TagBadge key={tag.id} tag={tag} size="md" /> : null
+                      })}
                     </div>
                   </div>
 
@@ -954,6 +719,23 @@ export function ConversationsPage() {
                   >
                     Transferir setor
                   </button>
+                </div>
+              </section>
+
+              <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  Etiquetas da conversa
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Aplique ou remova tags sem sair do painel de atendimento.
+                </p>
+                <div className="mt-4">
+                  <TagPicker
+                    tags={tags}
+                    selectedTagIds={activeConversation.tagIds}
+                    onToggle={handleToggleConversationTag}
+                    emptyMessage="Nenhuma tag disponivel. Crie a primeira em Configuracoes."
+                  />
                 </div>
               </section>
 
