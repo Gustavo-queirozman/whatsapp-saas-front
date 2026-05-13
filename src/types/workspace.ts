@@ -6,6 +6,26 @@ export type WorkspaceTag = {
   createdAt: string
 }
 
+export type AttendantStatus = 'Online' | 'Pausa' | 'Offline'
+
+export type WorkspaceAttendant = {
+  id: string
+  name: string
+  role: string
+  email: string
+  status: AttendantStatus
+}
+
+export type WorkspaceSector = {
+  id: string
+  name: string
+  color: string
+  description: string
+  slaMinutes: number
+  attendantIds: string[]
+  createdAt: string
+}
+
 export type ContactLifecycle = 'Lead' | 'Cliente' | 'Parceiro'
 
 export type WorkspaceContact = {
@@ -46,11 +66,13 @@ export type WorkspaceConversation = {
   contactName: string
   phone: string
   company: string
-  sector: string
+  sectorId: string
   status: ConversationStatus
   tagIds: string[]
   attendant: string | null
-  waitingSince: string
+  queuedAt: string
+  lastAssignedAt: string | null
+  closedAt: string | null
   lastMessage: string
   lastMessageTime: string
   unreadCount: number

@@ -1,20 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { TagBadge } from '../components/tags/TagBadge'
 import { TagPicker } from '../components/tags/TagPicker'
+import { getConversationWaitingLabel } from '../lib/queue'
+import { useAuthStore } from '../store/authStore'
 import { useWorkspaceStore } from '../store/workspaceStore'
 import type {
   ConversationStatus,
   MessageDirection,
   WorkspaceConversation,
 } from '../types/workspace'
-
-const currentAgent = {
-  name: 'Marina Lopes',
-  role: 'Supervisora online',
-}
-
-const sectorOptions = ['Comercial', 'Suporte', 'Financeiro', 'Onboarding']
 
 const getStatusClasses = (status: ConversationStatus) => {
   if (status === 'Aguardando') {
@@ -50,16 +45,20 @@ const createEntryId = (prefix: string) =>
   `${prefix}-${Math.random().toString(36).slice(2, 10)}`
 
 export function ConversationsPage() {
+  const user = useAuthStore((state) => state.user)
   const conversations = useWorkspaceStore((state) => state.conversations)
+  const sectors = useWorkspaceStore((state) => state.sectors)
   const tags = useWorkspaceStore((state) => state.tags)
+  const assignConversation = useWorkspaceStore((state) => state.assignConversation)
   const updateConversation = useWorkspaceStore((state) => state.updateConversation)
+  const [nowTick, setNowTick] = useState(() => Date.now())
   const [activeConversationId, setActiveConversationId] = useState(
     conversations[0]?.id ?? '',
   )
   const [transferTargets, setTransferTargets] = useState<Record<string, string>>(
     () =>
       Object.fromEntries(
-        conversations.map((conversation) => [conversation.id, conversation.sector]),
+        conversations.map((conversation) => [conversation.id, conversation.sectorId]),
       ),
   )
   const [showHistory, setShowHistory] = useState(true)
@@ -71,17 +70,26 @@ export function ConversationsPage() {
     attendant: 'Todos',
   })
 
+  const currentAgentName = user?.name?.trim() || 'Marina Lopes'
+  const currentAgentRole = user?.email ? 'Agente autenticado' : 'Supervisora online'
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNowTick(Date.now()), 60_000)
+    return () => window.clearInterval(intervalId)
+  }, [])
+
   const tagMap = useMemo(() => new Map(tags.map((tag) => [tag.id, tag])), [tags])
+  const sectorMap = useMemo(
+    () => new Map(sectors.map((sector) => [sector.id, sector])),
+    [sectors],
+  )
 
   const activeTagFilter =
     filters.tagId === 'all' || tags.some((tag) => tag.id === filters.tagId)
       ? filters.tagId
       : 'all'
 
-  const sectorFilterOptions = [
-    'Todos',
-    ...Array.from(new Set(conversations.map((item) => item.sector))),
-  ]
+  const sectorFilterOptions = ['Todos', ...sectors.map((sector) => sector.name)]
 
   const statusFilterOptions: Array<ConversationStatus | 'Todos'> = [
     'Todos',
@@ -103,8 +111,8 @@ export function ConversationsPage() {
   ]
 
   const filteredConversations = conversations.filter((conversation) => {
-    const matchesSector =
-      filters.sector === 'Todos' || conversation.sector === filters.sector
+    const sectorName = sectorMap.get(conversation.sectorId)?.name ?? 'Sem setor'
+    const matchesSector = filters.sector === 'Todos' || sectorName === filters.sector
     const matchesStatus =
       filters.status === 'Todos' || conversation.status === filters.status
     const matchesTag =
@@ -131,49 +139,39 @@ export function ConversationsPage() {
 
   const selectedSector =
     (activeConversation ? transferTargets[activeConversation.id] : null) ??
-    activeConversation?.sector ??
-    sectorOptions[0]
+    activeConversation?.sectorId ??
+    sectors[0]?.id ??
+    ''
 
   const handleAssumeConversation = () => {
     if (!activeConversation || activeConversation.status === 'Finalizada') {
       return
     }
 
-    const now = createTimeLabel()
-
-    updateConversation(activeConversation.id, (conversation) => ({
-      ...conversation,
-      attendant: currentAgent.name,
-      status: 'Em atendimento',
-      waitingSince: 'Agora',
-      history: [
-        {
-          id: createEntryId('hist'),
-          title: 'Atendimento assumido',
-          description: `${currentAgent.name} assumiu a conversa manualmente.`,
-          time: now,
-        },
-        ...conversation.history,
-      ],
-    }))
+    assignConversation(activeConversation.id, currentAgentName)
   }
 
   const handleTransferSector = () => {
-    if (!activeConversation || selectedSector === activeConversation.sector) {
+    if (!activeConversation || !selectedSector || selectedSector === activeConversation.sectorId) {
       return
     }
 
-    const now = createTimeLabel()
+    const now = new Date()
+    const targetSectorName = sectorMap.get(selectedSector)?.name ?? 'Novo setor'
 
     updateConversation(activeConversation.id, (conversation) => ({
       ...conversation,
-      sector: selectedSector,
+      sectorId: selectedSector,
+      attendant: null,
+      status: conversation.status === 'Finalizada' ? 'Finalizada' : 'Aguardando',
+      queuedAt: now.toISOString(),
+      lastAssignedAt: conversation.status === 'Finalizada' ? conversation.lastAssignedAt : null,
       history: [
         {
           id: createEntryId('hist'),
           title: 'Transferencia de setor',
-          description: `Conversa transferida para ${selectedSector}.`,
-          time: now,
+          description: `Conversa transferida para ${targetSectorName} e devolvida para a fila.`,
+          time: createTimeLabel(),
         },
         ...conversation.history,
       ],
@@ -185,19 +183,19 @@ export function ConversationsPage() {
       return
     }
 
-    const now = createTimeLabel()
+    const now = new Date()
 
     updateConversation(activeConversation.id, (conversation) => ({
       ...conversation,
       status: 'Finalizada',
       unreadCount: 0,
-      waitingSince: 'Encerrada',
+      closedAt: now.toISOString(),
       history: [
         {
           id: createEntryId('hist'),
           title: 'Conversa finalizada',
-          description: `Encerramento realizado por ${currentAgent.name}.`,
-          time: now,
+          description: `Encerramento realizado por ${currentAgentName}.`,
+          time: createTimeLabel(),
         },
         ...conversation.history,
       ],
@@ -213,15 +211,17 @@ export function ConversationsPage() {
       return
     }
 
-    const now = createTimeLabel()
+    const now = new Date()
+    const timeLabel = createTimeLabel()
 
     updateConversation(activeConversation.id, (conversation) => ({
       ...conversation,
       status: 'Em atendimento',
-      attendant: conversation.attendant ?? currentAgent.name,
-      waitingSince: 'Agora',
+      attendant: conversation.attendant ?? currentAgentName,
+      lastAssignedAt: conversation.lastAssignedAt ?? now.toISOString(),
+      closedAt: null,
       lastMessage: message,
-      lastMessageTime: now,
+      lastMessageTime: timeLabel,
       unreadCount: 0,
       messages: [
         ...conversation.messages,
@@ -229,16 +229,16 @@ export function ConversationsPage() {
           id: createEntryId('msg'),
           direction: 'outgoing',
           content: message,
-          sender: currentAgent.name,
-          time: now,
+          sender: currentAgentName,
+          time: timeLabel,
         },
       ],
       history: [
         {
           id: createEntryId('hist'),
           title: 'Mensagem enviada',
-          description: `${currentAgent.name} respondeu a conversa.`,
-          time: now,
+          description: `${currentAgentName} respondeu a conversa.`,
+          time: timeLabel,
         },
         ...conversation.history,
       ],
@@ -258,7 +258,7 @@ export function ConversationsPage() {
       return
     }
 
-    const now = createTimeLabel()
+    const timeLabel = createTimeLabel()
     const wasApplied = activeConversation.tagIds.includes(tagId)
 
     updateConversation(activeConversation.id, (conversation: WorkspaceConversation) => ({
@@ -270,8 +270,8 @@ export function ConversationsPage() {
         {
           id: createEntryId('hist'),
           title: wasApplied ? 'Tag removida' : 'Tag aplicada',
-          description: `${currentAgent.name} ${wasApplied ? 'removeu' : 'aplicou'} a tag ${tag.name}.`,
-          time: now,
+          description: `${currentAgentName} ${wasApplied ? 'removeu' : 'aplicou'} a tag ${tag.name}.`,
+          time: timeLabel,
         },
         ...conversation.history,
       ],
@@ -317,7 +317,8 @@ export function ConversationsPage() {
               <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
                 Agente ativo
               </p>
-              <p className="mt-2 text-base font-semibold">{currentAgent.name}</p>
+              <p className="mt-2 text-base font-semibold">{currentAgentName}</p>
+              <p className="mt-1 text-xs text-slate-400">{currentAgentRole}</p>
             </article>
           </div>
         </div>
@@ -427,6 +428,8 @@ export function ConversationsPage() {
             {filteredConversations.length ? (
               filteredConversations.map((conversation) => {
                 const isActive = conversation.id === activeConversation?.id
+                const sectorName =
+                  sectorMap.get(conversation.sectorId)?.name ?? 'Sem setor'
 
                 return (
                   <button
@@ -472,10 +475,13 @@ export function ConversationsPage() {
                         {conversation.status}
                       </span>
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                        {conversation.sector}
+                        {sectorName}
                       </span>
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                         {conversation.attendant ?? 'Sem responsavel'}
+                      </span>
+                      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                        {getConversationWaitingLabel(conversation, nowTick)}
                       </span>
                       {conversation.tagIds.slice(0, 2).map((tagId) => {
                         const tag = tagMap.get(tagId)
@@ -670,7 +676,7 @@ export function ConversationsPage() {
                     Setor atual
                   </p>
                   <p className="mt-2 text-base font-semibold text-slate-950">
-                    {activeConversation.sector}
+                    {sectorMap.get(activeConversation.sectorId)?.name ?? 'Sem setor'}
                   </p>
                 </article>
                 <article className="rounded-[1.35rem] border border-slate-200 bg-slate-50 px-4 py-3">
@@ -686,7 +692,7 @@ export function ConversationsPage() {
                     Tempo de fila
                   </p>
                   <p className="mt-2 text-base font-semibold text-slate-950">
-                    {activeConversation.waitingSince}
+                    {getConversationWaitingLabel(activeConversation, nowTick)}
                   </p>
                 </article>
               </section>
@@ -706,9 +712,9 @@ export function ConversationsPage() {
                     }
                     className="rounded-[1rem] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none"
                   >
-                    {sectorOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
+                    {sectors.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
                       </option>
                     ))}
                   </select>

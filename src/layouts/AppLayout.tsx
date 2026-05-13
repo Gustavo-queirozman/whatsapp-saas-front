@@ -23,6 +23,18 @@ const navigation = [
     shortLabel: 'CT',
   },
   {
+    to: '/filas',
+    label: 'Filas',
+    description: 'Operacao por setor, espera e distribuicao.',
+    shortLabel: 'FQ',
+  },
+  {
+    to: '/setores',
+    label: 'Setores',
+    description: 'CRUD, SLA e vinculo de atendentes.',
+    shortLabel: 'ST',
+  },
+  {
     to: '/campanhas',
     label: 'Campanhas',
     description: 'Disparos, segmentos e performance.',

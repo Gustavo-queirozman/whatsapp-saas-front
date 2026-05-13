@@ -1,15 +1,33 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
+  WorkspaceAttendant,
   WorkspaceContact,
   WorkspaceConversation,
+  WorkspaceSector,
   WorkspaceTag,
 } from '../types/workspace'
 
-const WORKSPACE_STORAGE_KEY = 'workspace-tags-storage'
+const WORKSPACE_STORAGE_KEY = 'workspace-operations-storage'
 
 const sortTags = (tags: WorkspaceTag[]) =>
   [...tags].sort((first, second) => first.name.localeCompare(second.name, 'pt-BR'))
+
+const sortSectors = (sectors: WorkspaceSector[]) =>
+  [...sectors].sort((first, second) => first.name.localeCompare(second.name, 'pt-BR'))
+
+const createTimeLabel = (date = new Date()) =>
+  new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+
+const createEntryId = (prefix: string) =>
+  `${prefix}-${Math.random().toString(36).slice(2, 10)}`
+
+const isDefinedAttendant = (
+  attendant: WorkspaceAttendant | undefined,
+): attendant is WorkspaceAttendant => Boolean(attendant)
 
 const initialTags: WorkspaceTag[] = sortTags([
   {
@@ -67,6 +85,83 @@ const initialTags: WorkspaceTag[] = sortTags([
     color: '#0891b2',
     description: 'Sessoes de habilitacao, consultoria e repasse interno.',
     createdAt: '2026-05-13T09:11:00.000Z',
+  },
+])
+
+const initialAttendants: WorkspaceAttendant[] = [
+  {
+    id: 'att-marina',
+    name: 'Marina Lopes',
+    role: 'Supervisora online',
+    email: 'marina@workspace.local',
+    status: 'Online',
+  },
+  {
+    id: 'att-joao',
+    name: 'Joao Pedro',
+    role: 'Closer comercial',
+    email: 'joao@workspace.local',
+    status: 'Online',
+  },
+  {
+    id: 'att-sofia',
+    name: 'Sofia Mendes',
+    role: 'Especialista de onboarding',
+    email: 'sofia@workspace.local',
+    status: 'Online',
+  },
+  {
+    id: 'att-bianca',
+    name: 'Bianca Cruz',
+    role: 'Operacao financeira',
+    email: 'bianca@workspace.local',
+    status: 'Online',
+  },
+  {
+    id: 'att-rafael',
+    name: 'Rafael Dias',
+    role: 'Analista de suporte',
+    email: 'rafael@workspace.local',
+    status: 'Pausa',
+  },
+]
+
+const initialSectors: WorkspaceSector[] = sortSectors([
+  {
+    id: 'sector-comercial',
+    name: 'Comercial',
+    color: '#2563eb',
+    description: 'Qualificacao, proposta, fechamento e follow-up de leads.',
+    slaMinutes: 15,
+    attendantIds: ['att-joao', 'att-marina'],
+    createdAt: '2026-05-13T08:30:00.000Z',
+  },
+  {
+    id: 'sector-financeiro',
+    name: 'Financeiro',
+    color: '#f59e0b',
+    description: 'Pagamentos, cobranca, renovacao e tratativas de boleto.',
+    slaMinutes: 10,
+    attendantIds: ['att-bianca', 'att-marina'],
+    createdAt: '2026-05-13T08:32:00.000Z',
+  },
+  {
+    id: 'sector-onboarding',
+    name: 'Onboarding',
+    color: '#059669',
+    description: 'Implantacao, agenda de treinamento e handoff pos-venda.',
+    slaMinutes: 25,
+    attendantIds: ['att-sofia'],
+    createdAt: '2026-05-13T08:35:00.000Z',
+  },
+  {
+    id: 'sector-suporte',
+    name: 'Suporte',
+    color: '#7c3aed',
+    description: 'Incidentes, orientacoes tecnicas e acompanhamento de integracao.',
+    slaMinutes: 12,
+    attendantIds: ['att-marina', 'att-rafael'],
+    createdAt: '2026-05-13T08:37:00.000Z',
   },
 ])
 
@@ -140,11 +235,13 @@ const initialConversations: WorkspaceConversation[] = [
     contactName: 'Ana Costa',
     phone: '+55 11 99871-2304',
     company: 'Studio Avela',
-    sector: 'Financeiro',
+    sectorId: 'sector-financeiro',
     status: 'Aguardando',
     tagIds: ['tag-vip', 'tag-boleto'],
     attendant: null,
-    waitingSince: '12 min',
+    queuedAt: '2026-05-13T12:57:00.000Z',
+    lastAssignedAt: null,
+    closedAt: null,
     lastMessage: 'Pode confirmar se o boleto compensa hoje?',
     lastMessageTime: '09:14',
     unreadCount: 3,
@@ -202,11 +299,13 @@ const initialConversations: WorkspaceConversation[] = [
     contactName: 'Lucas Martins',
     phone: '+55 21 99751-1032',
     company: 'Orbita Imoveis',
-    sector: 'Comercial',
+    sectorId: 'sector-comercial',
     status: 'Em atendimento',
     tagIds: ['tag-lead-quente', 'tag-proposta'],
     attendant: 'Joao Pedro',
-    waitingSince: '3 min',
+    queuedAt: '2026-05-13T12:48:00.000Z',
+    lastAssignedAt: '2026-05-13T12:51:00.000Z',
+    closedAt: null,
     lastMessage: 'Fechado. Pode mandar o contrato ainda hoje.',
     lastMessageTime: '09:09',
     unreadCount: 0,
@@ -264,11 +363,13 @@ const initialConversations: WorkspaceConversation[] = [
     contactName: 'Camila Nunes',
     phone: '+55 31 98810-4457',
     company: 'Clinica Revita',
-    sector: 'Suporte',
+    sectorId: 'sector-suporte',
     status: 'Em atendimento',
     tagIds: ['tag-prioridade-alta', 'tag-integracao'],
     attendant: 'Marina Lopes',
-    waitingSince: 'Agora',
+    queuedAt: '2026-05-13T12:58:00.000Z',
+    lastAssignedAt: '2026-05-13T13:01:00.000Z',
+    closedAt: null,
     lastMessage: 'Pode seguir. Estou acompanhando por aqui.',
     lastMessageTime: '09:18',
     unreadCount: 0,
@@ -326,11 +427,13 @@ const initialConversations: WorkspaceConversation[] = [
     contactName: 'Equipe Vitta',
     phone: '+55 71 98761-2210',
     company: 'Vitta Educacao',
-    sector: 'Onboarding',
+    sectorId: 'sector-onboarding',
     status: 'Finalizada',
     tagIds: ['tag-implantacao', 'tag-treinamento'],
     attendant: 'Sofia Mendes',
-    waitingSince: 'Encerrada',
+    queuedAt: '2026-05-12T18:02:00.000Z',
+    lastAssignedAt: '2026-05-12T18:11:00.000Z',
+    closedAt: '2026-05-12T20:06:00.000Z',
     lastMessage: 'Treinamento confirmado para sexta, obrigado.',
     lastMessageTime: 'Ontem',
     unreadCount: 0,
@@ -370,8 +473,39 @@ const initialConversations: WorkspaceConversation[] = [
   },
 ]
 
+const assignConversationInternal = ({
+  conversation,
+  attendantName,
+  title,
+  description,
+  now,
+}: {
+  conversation: WorkspaceConversation
+  attendantName: string
+  title: string
+  description: string
+  now: Date
+}) => ({
+  ...conversation,
+  attendant: attendantName,
+  status: 'Em atendimento' as const,
+  lastAssignedAt: now.toISOString(),
+  closedAt: null,
+  history: [
+    {
+      id: createEntryId('hist'),
+      title,
+      description,
+      time: createTimeLabel(now),
+    },
+    ...conversation.history,
+  ],
+})
+
 type WorkspaceStore = {
   tags: WorkspaceTag[]
+  attendants: WorkspaceAttendant[]
+  sectors: WorkspaceSector[]
   contacts: WorkspaceContact[]
   conversations: WorkspaceConversation[]
   createTag: (input: Pick<WorkspaceTag, 'name' | 'color' | 'description'>) => void
@@ -380,6 +514,17 @@ type WorkspaceStore = {
     input: Pick<WorkspaceTag, 'name' | 'color' | 'description'>,
   ) => void
   deleteTag: (tagId: string) => void
+  createSector: (
+    input: Pick<WorkspaceSector, 'name' | 'color' | 'description' | 'slaMinutes'>,
+  ) => void
+  updateSector: (
+    sectorId: string,
+    input: Pick<WorkspaceSector, 'name' | 'color' | 'description' | 'slaMinutes'>,
+  ) => void
+  deleteSector: (sectorId: string) => void
+  toggleSectorAttendant: (sectorId: string, attendantId: string) => void
+  assignConversation: (conversationId: string, attendantName: string) => void
+  autoDistributeSectorQueue: (sectorId: string) => void
   updateContact: (
     contactId: string,
     updater: (contact: WorkspaceContact) => WorkspaceContact,
@@ -394,6 +539,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
   persist(
     (set) => ({
       tags: initialTags,
+      attendants: initialAttendants,
+      sectors: initialSectors,
       contacts: initialContacts,
       conversations: initialConversations,
       createTag(input) {
@@ -441,6 +588,192 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           })),
         }))
       },
+      createSector(input) {
+        set((state) => ({
+          sectors: sortSectors([
+            ...state.sectors,
+            {
+              id: crypto.randomUUID(),
+              name: input.name.trim(),
+              color: input.color,
+              description: input.description.trim(),
+              slaMinutes: input.slaMinutes,
+              attendantIds: [],
+              createdAt: new Date().toISOString(),
+            },
+          ]),
+        }))
+      },
+      updateSector(sectorId, input) {
+        set((state) => ({
+          sectors: sortSectors(
+            state.sectors.map((sector) =>
+              sector.id === sectorId
+                ? {
+                    ...sector,
+                    name: input.name.trim(),
+                    color: input.color,
+                    description: input.description.trim(),
+                    slaMinutes: input.slaMinutes,
+                  }
+                : sector,
+            ),
+          ),
+        }))
+      },
+      deleteSector(sectorId) {
+        set((state) => {
+          if (state.sectors.length <= 1) {
+            return state
+          }
+
+          const fallbackSector = state.sectors.find((sector) => sector.id !== sectorId)
+
+          if (!fallbackSector) {
+            return state
+          }
+
+          return {
+            sectors: state.sectors.filter((sector) => sector.id !== sectorId),
+            conversations: state.conversations.map((conversation) =>
+              conversation.sectorId === sectorId
+                ? {
+                    ...conversation,
+                    sectorId: fallbackSector.id,
+                    history: [
+                      {
+                        id: createEntryId('hist'),
+                        title: 'Setor removido',
+                        description: `Conversa movida para ${fallbackSector.name} apos remocao do setor anterior.`,
+                        time: createTimeLabel(),
+                      },
+                      ...conversation.history,
+                    ],
+                  }
+                : conversation,
+            ),
+          }
+        })
+      },
+      toggleSectorAttendant(sectorId, attendantId) {
+        set((state) => ({
+          sectors: state.sectors.map((sector) =>
+            sector.id === sectorId
+              ? {
+                  ...sector,
+                  attendantIds: sector.attendantIds.includes(attendantId)
+                    ? sector.attendantIds.filter((currentId) => currentId !== attendantId)
+                    : [...sector.attendantIds, attendantId],
+                }
+              : sector,
+          ),
+        }))
+      },
+      assignConversation(conversationId, attendantName) {
+        set((state) => {
+          const now = new Date()
+
+          return {
+            conversations: state.conversations.map((conversation) =>
+              conversation.id === conversationId &&
+              conversation.status !== 'Finalizada'
+                ? assignConversationInternal({
+                    conversation,
+                    attendantName,
+                    title: 'Atendimento assumido',
+                    description: `${attendantName} assumiu a conversa manualmente.`,
+                    now,
+                  })
+                : conversation,
+            ),
+          }
+        })
+      },
+      autoDistributeSectorQueue(sectorId) {
+        set((state) => {
+          const sector = state.sectors.find((item) => item.id === sectorId)
+
+          if (!sector) {
+            return state
+          }
+
+          const availableAttendants = sector.attendantIds
+            .map((attendantId) =>
+              state.attendants.find((attendant) => attendant.id === attendantId),
+            )
+            .filter(isDefinedAttendant)
+            .filter((attendant) => attendant.status === 'Online')
+
+          if (!availableAttendants.length) {
+            return state
+          }
+
+          const waitingConversationIds = state.conversations
+            .filter(
+              (conversation) =>
+                conversation.sectorId === sectorId && conversation.status === 'Aguardando',
+            )
+            .sort(
+              (first, second) =>
+                new Date(first.queuedAt).getTime() - new Date(second.queuedAt).getTime(),
+            )
+            .map((conversation) => conversation.id)
+
+          if (!waitingConversationIds.length) {
+            return state
+          }
+
+          const loads = new Map(
+            availableAttendants.map((attendant) => [
+              attendant.name,
+              state.conversations.filter(
+                (conversation) =>
+                  conversation.sectorId === sectorId &&
+                  conversation.status === 'Em atendimento' &&
+                  conversation.attendant === attendant.name,
+              ).length,
+            ]),
+          )
+
+          const assignments = new Map<string, string>()
+
+          for (const conversationId of waitingConversationIds) {
+            const selectedAttendant = [...availableAttendants].sort((first, second) => {
+              const firstLoad = loads.get(first.name) ?? 0
+              const secondLoad = loads.get(second.name) ?? 0
+
+              if (firstLoad === secondLoad) {
+                return first.name.localeCompare(second.name, 'pt-BR')
+              }
+
+              return firstLoad - secondLoad
+            })[0]
+
+            assignments.set(conversationId, selectedAttendant.name)
+            loads.set(selectedAttendant.name, (loads.get(selectedAttendant.name) ?? 0) + 1)
+          }
+
+          const now = new Date()
+
+          return {
+            conversations: state.conversations.map((conversation) => {
+              const attendantName = assignments.get(conversation.id)
+
+              if (!attendantName) {
+                return conversation
+              }
+
+              return assignConversationInternal({
+                conversation,
+                attendantName,
+                title: 'Distribuicao automatica',
+                description: `Conversa distribuida automaticamente para ${attendantName}.`,
+                now,
+              })
+            }),
+          }
+        })
+      },
       updateContact(contactId, updater) {
         set((state) => ({
           contacts: state.contacts.map((contact) =>
@@ -462,6 +795,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       name: WORKSPACE_STORAGE_KEY,
       partialize: (state) => ({
         tags: state.tags,
+        attendants: state.attendants,
+        sectors: state.sectors,
         contacts: state.contacts,
         conversations: state.conversations,
       }),

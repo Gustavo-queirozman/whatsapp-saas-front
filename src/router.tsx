@@ -15,6 +15,8 @@ import { ContactsPage } from './pages/ContactsPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
 import { ModulePage } from './pages/ModulePage'
+import { QueuesPage } from './pages/QueuesPage'
+import { SectorsPage } from './pages/SectorsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { WhatsAppPage } from './pages/WhatsAppPage'
 
@@ -40,6 +42,8 @@ export const router = createBrowserRouter([
                   { path: DASHBOARD_ROUTE, element: <DashboardPage /> },
                   { path: '/atendimento', element: <ConversationsPage /> },
                   { path: '/contatos', element: <ContactsPage /> },
+                  { path: '/filas', element: <QueuesPage /> },
+                  { path: '/setores', element: <SectorsPage /> },
                   {
                     path: '/campanhas',
                     element: (
