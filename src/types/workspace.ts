@@ -41,6 +41,35 @@ export type WorkspaceContact = {
   tagIds: string[]
 }
 
+export type WorkspacePipeline = {
+  id: string
+  name: string
+  description: string
+  color: string
+  createdAt: string
+}
+
+export type WorkspacePipelineStage = {
+  id: string
+  pipelineId: string
+  name: string
+  color: string
+  order: number
+}
+
+export type WorkspaceDeal = {
+  id: string
+  pipelineId: string
+  stageId: string
+  name: string
+  contactId: string | null
+  ownerId: string | null
+  value: number
+  notes: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type CampaignStatus = 'Agendada' | 'Em andamento' | 'Pausada' | 'Concluida'
 
 export type CampaignRecipientStatus =

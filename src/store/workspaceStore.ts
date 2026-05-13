@@ -7,6 +7,9 @@ import type {
   WorkspaceContact,
   WorkspaceConversation,
   WorkspaceCampaignRecipient,
+  WorkspaceDeal,
+  WorkspacePipeline,
+  WorkspacePipelineStage,
   WorkspaceSector,
   WorkspaceTag,
 } from '../types/workspace'
@@ -18,6 +21,18 @@ const sortTags = (tags: WorkspaceTag[]) =>
 
 const sortSectors = (sectors: WorkspaceSector[]) =>
   [...sectors].sort((first, second) => first.name.localeCompare(second.name, 'pt-BR'))
+
+const sortPipelines = (pipelines: WorkspacePipeline[]) =>
+  [...pipelines].sort((first, second) => first.name.localeCompare(second.name, 'pt-BR'))
+
+const sortPipelineStages = (stages: WorkspacePipelineStage[]) =>
+  [...stages].sort((first, second) => first.order - second.order)
+
+const sortDeals = (deals: WorkspaceDeal[]) =>
+  [...deals].sort(
+    (first, second) =>
+      new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime(),
+  )
 
 const createTimeLabel = (date = new Date()) =>
   new Intl.DateTimeFormat('pt-BR', {
@@ -236,6 +251,133 @@ const initialContacts: WorkspaceContact[] = [
     tagIds: ['tag-proposta'],
   },
 ]
+
+const initialPipelines: WorkspacePipeline[] = sortPipelines([
+  {
+    id: 'pipeline-vendas',
+    name: 'Vendas consultivas',
+    description: 'Qualificacao, proposta e fechamento de novos clientes.',
+    color: '#2563eb',
+    createdAt: '2026-05-13T08:40:00.000Z',
+  },
+  {
+    id: 'pipeline-expansao',
+    name: 'Expansao de carteira',
+    description: 'Upsell, renovacao e oportunidades na base ativa.',
+    color: '#0f766e',
+    createdAt: '2026-05-13T08:42:00.000Z',
+  },
+])
+
+const initialPipelineStages: WorkspacePipelineStage[] = sortPipelineStages([
+  {
+    id: 'stage-lead-entrada',
+    pipelineId: 'pipeline-vendas',
+    name: 'Entrada',
+    color: '#dbeafe',
+    order: 1,
+  },
+  {
+    id: 'stage-diagnostico',
+    pipelineId: 'pipeline-vendas',
+    name: 'Diagnostico',
+    color: '#bfdbfe',
+    order: 2,
+  },
+  {
+    id: 'stage-proposta',
+    pipelineId: 'pipeline-vendas',
+    name: 'Proposta',
+    color: '#93c5fd',
+    order: 3,
+  },
+  {
+    id: 'stage-fechamento',
+    pipelineId: 'pipeline-vendas',
+    name: 'Fechamento',
+    color: '#60a5fa',
+    order: 4,
+  },
+  {
+    id: 'stage-renovacao-mapeada',
+    pipelineId: 'pipeline-expansao',
+    name: 'Mapeada',
+    color: '#ccfbf1',
+    order: 1,
+  },
+  {
+    id: 'stage-apresentacao-upsell',
+    pipelineId: 'pipeline-expansao',
+    name: 'Upsell',
+    color: '#99f6e4',
+    order: 2,
+  },
+  {
+    id: 'stage-negociacao-renovacao',
+    pipelineId: 'pipeline-expansao',
+    name: 'Negociacao',
+    color: '#5eead4',
+    order: 3,
+  },
+  {
+    id: 'stage-ganho-expansao',
+    pipelineId: 'pipeline-expansao',
+    name: 'Ganho',
+    color: '#2dd4bf',
+    order: 4,
+  },
+])
+
+const initialDeals: WorkspaceDeal[] = sortDeals([
+  {
+    id: 'deal-orbita-enterprise',
+    pipelineId: 'pipeline-vendas',
+    stageId: 'stage-fechamento',
+    name: 'Orbita Enterprise 40 licencas',
+    contactId: 'contact-lucas',
+    ownerId: 'att-joao',
+    value: 48000,
+    notes: 'Contrato liberado. Cliente pediu envio ainda hoje com onboarding estendido.',
+    createdAt: '2026-05-13T12:10:00.000Z',
+    updatedAt: '2026-05-13T12:10:00.000Z',
+  },
+  {
+    id: 'deal-revita-automacao',
+    pipelineId: 'pipeline-vendas',
+    stageId: 'stage-proposta',
+    name: 'Revita automacao de lembretes',
+    contactId: 'contact-camila',
+    ownerId: 'att-marina',
+    value: 18500,
+    notes: 'Cliente quer proposta com integracao incluida e prazo curto de implantacao.',
+    createdAt: '2026-05-13T11:20:00.000Z',
+    updatedAt: '2026-05-13T11:20:00.000Z',
+  },
+  {
+    id: 'deal-studio-avela-renovacao',
+    pipelineId: 'pipeline-expansao',
+    stageId: 'stage-negociacao-renovacao',
+    name: 'Renovacao Studio Avela',
+    contactId: 'contact-ana',
+    ownerId: 'att-bianca',
+    value: 12600,
+    notes: 'Renovacao anual em negociacao com financeiro e chance de adicionar modulo premium.',
+    createdAt: '2026-05-13T10:55:00.000Z',
+    updatedAt: '2026-05-13T10:55:00.000Z',
+  },
+  {
+    id: 'deal-vitta-upsell',
+    pipelineId: 'pipeline-expansao',
+    stageId: 'stage-apresentacao-upsell',
+    name: 'Vitta treinamento recorrente',
+    contactId: 'contact-vitta',
+    ownerId: 'att-sofia',
+    value: 9200,
+    notes: 'Proposta de pacote recorrente de treinamento pos-implantacao.',
+    createdAt: '2026-05-13T10:15:00.000Z',
+    updatedAt: '2026-05-13T10:15:00.000Z',
+  },
+])
 
 const initialConversations: WorkspaceConversation[] = [
   {
@@ -578,6 +720,9 @@ type WorkspaceStore = {
   attendants: WorkspaceAttendant[]
   sectors: WorkspaceSector[]
   contacts: WorkspaceContact[]
+  pipelines: WorkspacePipeline[]
+  pipelineStages: WorkspacePipelineStage[]
+  deals: WorkspaceDeal[]
   campaigns: WorkspaceCampaign[]
   conversations: WorkspaceConversation[]
   createTag: (input: Pick<WorkspaceTag, 'name' | 'color' | 'description'>) => void
@@ -601,6 +746,20 @@ type WorkspaceStore = {
     contactId: string,
     updater: (contact: WorkspaceContact) => WorkspaceContact,
   ) => void
+  createDeal: (input: {
+    pipelineId: string
+    stageId: string
+    name: string
+    contactId: string | null
+    ownerId: string | null
+    value: number
+    notes: string
+  }) => string
+  moveDealToStage: (dealId: string, stageId: string) => void
+  updateDeal: (
+    dealId: string,
+    input: Pick<WorkspaceDeal, 'stageId' | 'contactId' | 'ownerId' | 'value' | 'notes'>,
+  ) => void
   createCampaign: (input: {
     name: string
     whatsappInstanceId: number
@@ -623,6 +782,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       attendants: initialAttendants,
       sectors: initialSectors,
       contacts: initialContacts,
+      pipelines: initialPipelines,
+      pipelineStages: initialPipelineStages,
+      deals: initialDeals,
       campaigns: initialCampaigns,
       conversations: initialConversations,
       createTag(input) {
@@ -863,6 +1025,80 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           ),
         }))
       },
+      createDeal(input) {
+        const dealId = crypto.randomUUID()
+        const now = new Date().toISOString()
+
+        set((state) => ({
+          deals: sortDeals([
+            {
+              id: dealId,
+              pipelineId: input.pipelineId,
+              stageId: input.stageId,
+              name: input.name.trim(),
+              contactId: input.contactId,
+              ownerId: input.ownerId,
+              value: input.value,
+              notes: input.notes.trim(),
+              createdAt: now,
+              updatedAt: now,
+            },
+            ...state.deals,
+          ]),
+        }))
+
+        return dealId
+      },
+      moveDealToStage(dealId, stageId) {
+        set((state) => {
+          const targetStage = state.pipelineStages.find((stage) => stage.id === stageId)
+
+          if (!targetStage) {
+            return state
+          }
+
+          return {
+            deals: sortDeals(
+              state.deals.map((deal) =>
+                deal.id === dealId && deal.pipelineId === targetStage.pipelineId
+                  ? {
+                      ...deal,
+                      stageId,
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : deal,
+              ),
+            ),
+          }
+        })
+      },
+      updateDeal(dealId, input) {
+        set((state) => {
+          const targetStage = state.pipelineStages.find((stage) => stage.id === input.stageId)
+
+          if (!targetStage) {
+            return state
+          }
+
+          return {
+            deals: sortDeals(
+              state.deals.map((deal) =>
+                deal.id === dealId && deal.pipelineId === targetStage.pipelineId
+                  ? {
+                      ...deal,
+                      stageId: input.stageId,
+                      contactId: input.contactId,
+                      ownerId: input.ownerId,
+                      value: input.value,
+                      notes: input.notes.trim(),
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : deal,
+              ),
+            ),
+          }
+        })
+      },
       createCampaign(input) {
         const campaignId = crypto.randomUUID()
         const timestamp = new Date().toISOString()
@@ -930,6 +1166,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         attendants: state.attendants,
         sectors: state.sectors,
         contacts: state.contacts,
+        pipelines: state.pipelines,
+        pipelineStages: state.pipelineStages,
+        deals: state.deals,
         campaigns: state.campaigns,
         conversations: state.conversations,
       }),

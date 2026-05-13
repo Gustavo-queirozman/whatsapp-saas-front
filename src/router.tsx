@@ -14,9 +14,9 @@ import { CampaignsPage } from './pages/CampaignsPage'
 import { ChatbotPage } from './pages/ChatbotPage'
 import { ConversationsPage } from './pages/ConversationsPage'
 import { ContactsPage } from './pages/ContactsPage'
+import { CrmPage } from './pages/CrmPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
-import { ModulePage } from './pages/ModulePage'
 import { QueuesPage } from './pages/QueuesPage'
 import { SectorsPage } from './pages/SectorsPage'
 import { SettingsPage } from './pages/SettingsPage'
@@ -47,38 +47,7 @@ export const router = createBrowserRouter([
                   { path: '/filas', element: <QueuesPage /> },
                   { path: '/setores', element: <SectorsPage /> },
                   { path: '/campanhas', element: <CampaignsPage /> },
-                  {
-                    path: '/crm',
-                    element: (
-                      <ModulePage
-                        title="Pipeline comercial orientado a WhatsApp"
-                        eyebrow="CRM"
-                        description="Conecte conversas a oportunidades para acompanhar negociaoes, follow-ups e previsao de receita."
-                        highlights={[
-                          'Etapas alinhadas ao funil comercial da operacao.',
-                          'Alertas para follow-up vencido e risco de perda.',
-                          'Visao rapida de valor em aberto por carteira.',
-                        ]}
-                        stats={[
-                          {
-                            label: 'Oportunidades',
-                            value: '84',
-                            detail: '12 em fase final de negociacao',
-                          },
-                          {
-                            label: 'Receita prevista',
-                            value: 'R$ 312k',
-                            detail: 'Baseada nas oportunidades abertas',
-                          },
-                          {
-                            label: 'Follow-ups hoje',
-                            value: '19',
-                            detail: '7 prioritarios para o comercial',
-                          },
-                        ]}
-                      />
-                    ),
-                  },
+                  { path: '/crm', element: <CrmPage /> },
                   {
                     path: '/chatbot',
                     element: <ChatbotPage />,
