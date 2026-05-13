@@ -2,6 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { TagBadge } from '../components/tags/TagBadge'
 import { TagPicker } from '../components/tags/TagPicker'
+import {
+  detectConversationIntent,
+  simulateAiRequest,
+  suggestConversationReply,
+  summarizeConversation,
+  type ConversationIntentResult,
+} from '../lib/conversationAi'
 import { getConversationWaitingLabel } from '../lib/queue'
 import { useAuthStore } from '../store/authStore'
 import { useWorkspaceStore } from '../store/workspaceStore'
@@ -44,6 +51,14 @@ const createTimeLabel = () =>
 const createEntryId = (prefix: string) =>
   `${prefix}-${Math.random().toString(36).slice(2, 10)}`
 
+type AiActionKey = 'summary' | 'suggestion' | 'intent'
+
+type ConversationAiState = {
+  summary?: string
+  suggestion?: string
+  intent?: ConversationIntentResult
+}
+
 export function ConversationsPage() {
   const user = useAuthStore((state) => state.user)
   const conversations = useWorkspaceStore((state) => state.conversations)
@@ -62,7 +77,13 @@ export function ConversationsPage() {
       ),
   )
   const [showHistory, setShowHistory] = useState(true)
-  const [draftMessage, setDraftMessage] = useState('')
+  const [draftMessages, setDraftMessages] = useState<Record<string, string>>({})
+  const [conversationAiStates, setConversationAiStates] = useState<
+    Record<string, ConversationAiState>
+  >({})
+  const [conversationAiLoading, setConversationAiLoading] = useState<
+    Record<string, Partial<Record<AiActionKey, boolean>>>
+  >({})
   const [filters, setFilters] = useState({
     sector: 'Todos',
     status: 'Todos',
@@ -136,12 +157,53 @@ export function ConversationsPage() {
     conversations.find((item) => item.id === resolvedConversationId) ??
     filteredConversations[0] ??
     null
+  const draftMessage = activeConversation ? draftMessages[activeConversation.id] ?? '' : ''
+  const activeConversationAiState = activeConversation
+    ? conversationAiStates[activeConversation.id]
+    : undefined
+  const activeConversationAiLoading = activeConversation
+    ? conversationAiLoading[activeConversation.id] ?? {}
+    : {}
 
   const selectedSector =
     (activeConversation ? transferTargets[activeConversation.id] : null) ??
     activeConversation?.sectorId ??
     sectors[0]?.id ??
     ''
+
+  const setConversationDraftMessage = (conversationId: string, value: string) => {
+    setDraftMessages((current) => ({
+      ...current,
+      [conversationId]: value,
+    }))
+  }
+
+  const setAiActionLoading = (
+    conversationId: string,
+    action: AiActionKey,
+    isLoading: boolean,
+  ) => {
+    setConversationAiLoading((current) => ({
+      ...current,
+      [conversationId]: {
+        ...current[conversationId],
+        [action]: isLoading,
+      },
+    }))
+  }
+
+  const patchConversationAiState = (
+    conversationId: string,
+    patch: Partial<ConversationAiState>,
+  ) => {
+    setConversationAiStates((current) => ({
+      ...current,
+      [conversationId]: {
+        ...current[conversationId],
+        ...patch,
+      },
+    }))
+  }
 
   const handleAssumeConversation = () => {
     if (!activeConversation || activeConversation.status === 'Finalizada') {
@@ -244,7 +306,10 @@ export function ConversationsPage() {
       ],
     }))
 
-    setDraftMessage('')
+    setDraftMessages((current) => ({
+      ...current,
+      [activeConversation.id]: '',
+    }))
   }
 
   const handleToggleConversationTag = (tagId: string) => {
@@ -276,6 +341,67 @@ export function ConversationsPage() {
         ...conversation.history,
       ],
     }))
+  }
+
+  const handleGenerateSummary = async () => {
+    if (!activeConversation) {
+      return
+    }
+
+    const conversation = activeConversation
+
+    setAiActionLoading(conversation.id, 'summary', true)
+
+    try {
+      const summary = await simulateAiRequest(() => summarizeConversation(conversation))
+      patchConversationAiState(conversation.id, { summary })
+    } finally {
+      setAiActionLoading(conversation.id, 'summary', false)
+    }
+  }
+
+  const handleDetectIntent = async () => {
+    if (!activeConversation) {
+      return
+    }
+
+    const conversation = activeConversation
+
+    setAiActionLoading(conversation.id, 'intent', true)
+
+    try {
+      const intent = await simulateAiRequest(() => detectConversationIntent(conversation), 950)
+      patchConversationAiState(conversation.id, { intent })
+    } finally {
+      setAiActionLoading(conversation.id, 'intent', false)
+    }
+  }
+
+  const handleSuggestReply = async () => {
+    if (!activeConversation || activeConversation.status === 'Finalizada') {
+      return
+    }
+
+    const conversation = activeConversation
+
+    setAiActionLoading(conversation.id, 'suggestion', true)
+
+    try {
+      const intent =
+        conversationAiStates[conversation.id]?.intent ?? detectConversationIntent(conversation)
+      const suggestion = await simulateAiRequest(
+        () => suggestConversationReply(conversation, intent),
+        1250,
+      )
+
+      patchConversationAiState(conversation.id, {
+        intent,
+        suggestion,
+      })
+      setConversationDraftMessage(conversation.id, suggestion)
+    } finally {
+      setAiActionLoading(conversation.id, 'suggestion', false)
+    }
   }
 
   return (
@@ -578,9 +704,137 @@ export function ConversationsPage() {
 
               <footer className="border-t border-emerald-100 bg-white/90 px-4 py-4 md:px-5">
                 <form className="space-y-3" onSubmit={handleSendMessage}>
+                  <section className="rounded-[1.4rem] border border-emerald-100 bg-[linear-gradient(135deg,#f3fff8,#ffffff_58%,#eefcf4)] p-4">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">
+                          IA leve
+                        </p>
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                          Gere resumo, detecte a intencao do cliente e monte uma resposta
+                          inicial para revisar antes do envio.
+                        </p>
+                      </div>
+
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        <button
+                          type="button"
+                          onClick={handleGenerateSummary}
+                          disabled={Boolean(activeConversationAiLoading.summary)}
+                          className="inline-flex items-center justify-center gap-2 rounded-[1rem] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:border-emerald-300 hover:text-emerald-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                        >
+                          {activeConversationAiLoading.summary ? (
+                            <span className="h-4 w-4 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+                          ) : null}
+                          Resumir conversa
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSuggestReply}
+                          disabled={
+                            activeConversation.status === 'Finalizada' ||
+                            Boolean(activeConversationAiLoading.suggestion)
+                          }
+                          className="inline-flex items-center justify-center gap-2 rounded-[1rem] border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                        >
+                          {activeConversationAiLoading.suggestion ? (
+                            <span className="h-4 w-4 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+                          ) : null}
+                          Sugerir resposta
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleDetectIntent}
+                          disabled={Boolean(activeConversationAiLoading.intent)}
+                          className="inline-flex items-center justify-center gap-2 rounded-[1rem] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:border-emerald-300 hover:text-emerald-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+                        >
+                          {activeConversationAiLoading.intent ? (
+                            <span className="h-4 w-4 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+                          ) : null}
+                          Detectar intencao
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 xl:grid-cols-2">
+                      <article className="rounded-[1.2rem] border border-white bg-white/90 px-4 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          Resumo rapido
+                        </p>
+                        {activeConversationAiLoading.summary ? (
+                          <p className="mt-3 text-sm text-slate-500">
+                            Lendo o historico para montar um resumo...
+                          </p>
+                        ) : activeConversationAiState?.summary ? (
+                          <p className="mt-3 text-sm leading-6 text-slate-700">
+                            {activeConversationAiState.summary}
+                          </p>
+                        ) : (
+                          <p className="mt-3 text-sm text-slate-500">
+                            Gere um resumo para destacar contexto, status e ultimas
+                            mensagens.
+                          </p>
+                        )}
+                      </article>
+
+                      <article className="rounded-[1.2rem] border border-white bg-white/90 px-4 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          Intencao detectada
+                        </p>
+                        {activeConversationAiLoading.intent ? (
+                          <p className="mt-3 text-sm text-slate-500">
+                            Cruzando palavras-chave e sinais da conversa...
+                          </p>
+                        ) : activeConversationAiState?.intent ? (
+                          <div className="mt-3 space-y-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">
+                                {activeConversationAiState.intent.label}
+                              </span>
+                              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                                Confianca {activeConversationAiState.intent.confidence}
+                              </span>
+                            </div>
+                            <p className="text-sm leading-6 text-slate-700">
+                              {activeConversationAiState.intent.description}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-sm text-slate-500">
+                            Identifique o objetivo principal do cliente para responder com
+                            mais contexto.
+                          </p>
+                        )}
+                      </article>
+
+                      <article className="rounded-[1.2rem] border border-white bg-white/90 px-4 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.04)] xl:col-span-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          Sugestao aplicada ao rascunho
+                        </p>
+                        {activeConversationAiLoading.suggestion ? (
+                          <p className="mt-3 text-sm text-slate-500">
+                            Preparando uma resposta inicial para o atendente revisar...
+                          </p>
+                        ) : activeConversationAiState?.suggestion ? (
+                          <p className="mt-3 text-sm leading-6 text-slate-700">
+                            A sugestao foi inserida no campo abaixo e pode ser editada antes
+                            do envio.
+                          </p>
+                        ) : (
+                          <p className="mt-3 text-sm text-slate-500">
+                            Gere uma resposta e refine o texto manualmente antes de falar com
+                            o cliente.
+                          </p>
+                        )}
+                      </article>
+                    </div>
+                  </section>
+
                   <textarea
                     value={draftMessage}
-                    onChange={(event) => setDraftMessage(event.target.value)}
+                    onChange={(event) =>
+                      setConversationDraftMessage(activeConversation.id, event.target.value)
+                    }
                     placeholder={
                       activeConversation.status === 'Finalizada'
                         ? 'Conversa finalizada. Reabra o fluxo para enviar novas mensagens.'
