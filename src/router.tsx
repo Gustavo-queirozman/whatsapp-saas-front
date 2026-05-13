@@ -10,6 +10,7 @@ import {
 } from './constants/auth'
 import { AppLayout } from './layouts/AppLayout'
 import { CompanySelectionPage } from './pages/CompanySelectionPage'
+import { ChatbotPage } from './pages/ChatbotPage'
 import { ConversationsPage } from './pages/ConversationsPage'
 import { ContactsPage } from './pages/ContactsPage'
 import { DashboardPage } from './pages/DashboardPage'
@@ -110,35 +111,7 @@ export const router = createBrowserRouter([
                   },
                   {
                     path: '/chatbot',
-                    element: (
-                      <ModulePage
-                        title="Automacoes e fluxos do chatbot"
-                        eyebrow="Chatbot"
-                        description="Projete jornadas de entrada, qualificacao e encaminhamento para escalar a operacao sem perder contexto."
-                        highlights={[
-                          'Fluxos de boas-vindas, triagem e distribuicao.',
-                          'Blocos reutilizaveis para vendas e suporte.',
-                          'Escalonamento inteligente para atendimento humano.',
-                        ]}
-                        stats={[
-                          {
-                            label: 'Fluxos ativos',
-                            value: '07',
-                            detail: '3 com testes A/B em andamento',
-                          },
-                          {
-                            label: 'Contencao',
-                            value: '63%',
-                            detail: 'Resolvidos sem transferencia humana',
-                          },
-                          {
-                            label: 'Tempo de roteamento',
-                            value: '16s',
-                            detail: 'Media ate a definicao do proximo passo',
-                          },
-                        ]}
-                      />
-                    ),
+                    element: <ChatbotPage />,
                   },
                   { path: '/configuracoes', element: <SettingsPage /> },
                   { path: '/whatsapp', element: <WhatsAppPage /> },
